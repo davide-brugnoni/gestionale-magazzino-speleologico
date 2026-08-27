@@ -190,6 +190,15 @@ $token = csrf();
       </div></div>
     </div>
 
+    <div class="titolo-sez" style="margin-top:22px">La tua password</div>
+    <div class="riquadro"><div class="corpo">
+      <label class="campo"><span>Password attuale</span><input type="password" id="mp-attuale" autocomplete="current-password"></label>
+      <label class="campo"><span>Nuova password</span><input type="password" id="mp-nuova" autocomplete="new-password"></label>
+      <label class="campo"><span>Ripeti la nuova password</span><input type="password" id="mp-nuova2" autocomplete="new-password"></label>
+      <ul class="regole-pass" id="mp-esito"></ul>
+      <button class="bottone" id="btn-mia-password">Cambia password</button>
+    </div></div>
+
     <div class="titolo-sez" style="margin-top:22px">Chi tiene aggiornato il programma</div>
     <div class="riquadro"><div class="corpo">
       <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">

@@ -675,6 +675,15 @@ case 'utente_elimina':
     }
     risposta(utente_elimina((string)($in['id'] ?? '')));
 
+case 'utente_mia_password':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(utente_cambia_password(
+        (string)($_SESSION['utente']['id'] ?? ''),
+        (string)($in['attuale'] ?? ''),
+        (string)($in['nuova'] ?? '')
+    ));
+
 // ---- impostazioni del gruppo -------------------------------------
 
 case 'impostazioni_salva':

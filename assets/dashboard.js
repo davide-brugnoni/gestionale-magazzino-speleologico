@@ -836,6 +836,26 @@
     });
   });
 
+  var controlloMiaPass = window.ControlloPassword.collega({
+    pass:     $('#mp-nuova'),
+    conferma: $('#mp-nuova2'),
+    esito:    $('#mp-esito'),
+    bottone:  $('#btn-mia-password')
+  });
+
+  $('#btn-mia-password').addEventListener('click', function () {
+    if (!$('#mp-attuale').value) { toast('Scrivi la password attuale.', 'male'); return; }
+    if (!controlloMiaPass.valida()) { toast('La nuova password non rispetta ancora le regole.', 'male'); return; }
+    scrivi('utente_mia_password', {
+      attuale: $('#mp-attuale').value, nuova: $('#mp-nuova').value
+    }, 'Password cambiata.').then(function (ok) {
+      if (ok) {
+        $('#mp-attuale').value = ''; $('#mp-nuova').value = ''; $('#mp-nuova2').value = '';
+        controlloMiaPass.aggiorna();
+      }
+    });
+  });
+
   ['#inv-cerca', '#inv-cat', '#inv-ordine'].forEach(function (s) { $(s).addEventListener('input', disegnaInventario); });
   ['#fuori-cerca', '#fuori-solo-ritardo'].forEach(function (s) { $(s).addEventListener('input', disegnaFuori); });
   $('#btn-pulisci-chiusi').addEventListener('click', pannelloPulizia);
