@@ -131,8 +131,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errore = 'Scrivi nome e cognome dell\'amministratore.';
             } elseif (!preg_match('/^[a-zA-Z0-9._-]{3,}$/', $user)) {
                 $errore = 'Il nome utente deve avere almeno 3 caratteri, senza spazi.';
-            } elseif (strlen($pass) < 8) {
-                $errore = 'La password dell\'amministratore deve avere almeno 8 caratteri.';
+            } elseif (!($regola = password_valida($pass))['ok']) {
+                $errore = $regola['errore'];
             } elseif ($pass !== $pass2) {
                 $errore = 'Le due password dell\'amministratore non coincidono.';
             } elseif (!$aperta && strlen($codice) < 4) {
@@ -265,7 +265,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=3">
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body class="installa">
 
@@ -342,7 +342,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 
       <label class="campo"><span>Logo (facoltativo)</span>
         <input type="file" name="logo" accept="image/*"></label>
-      <p class="guida">Quadrato, almeno 200 px. Viene ridotto in automatico. Se non lo carichi resta il pallino giallo.</p>
+      <p class="guida">Quadrato, almeno 200 px. Viene ridotto in automatico. Se non lo carichi resta il pallino di serie.</p>
 
       <?php if (!empty($bozza['logo'])): ?>
         <p class="guida">Logo caricato: <img class="mini" src="foto/<?= h(rawurlencode($bozza['logo'])) ?>" alt="" style="vertical-align:middle"></p>
@@ -368,11 +368,12 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <div class="due">
         <label class="campo"><span>Nome utente *</span>
           <input type="text" name="admin_user" value="<?= h($bozza['admin']['user'] ?? '') ?>" autocomplete="off" required></label>
-        <label class="campo"><span>Password (min. 8) *</span>
-          <input type="password" name="admin_pass" autocomplete="new-password" minlength="8" required></label>
+        <label class="campo"><span>Password *</span>
+          <input type="password" name="admin_pass" id="admin_pass" autocomplete="new-password" minlength="8" required></label>
       </div>
       <label class="campo"><span>Ripeti la password *</span>
-        <input type="password" name="admin_pass2" autocomplete="new-password" minlength="8" required></label>
+        <input type="password" name="admin_pass2" id="admin_pass2" autocomplete="new-password" minlength="8" required></label>
+      <ul class="regole-pass" id="admin_pass_esito"></ul>
       <p class="guida">Gli altri amministratori si aggiungono dopo, dalla dashboard.</p>
 
       <h3 class="sotto-titolo">Tutti gli altri soci</h3>
@@ -393,9 +394,21 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 
       <div class="azioni-fondo">
         <a class="bottone chiaro" href="installa.php?passo=2">Indietro</a>
-        <button class="bottone luce" type="submit">Avanti</button>
+        <button class="bottone luce" type="submit" id="admin_avanti">Avanti</button>
       </div>
     </form>
+
+    <script src="assets/password.js?v=1"></script>
+    <script>
+      // il bottone si blocca solo adesso: senza JavaScript il modulo resta usabile
+      // e a fare da rete c'e' password_valida() lato server
+      window.ControlloPassword.collega({
+        pass:     document.getElementById('admin_pass'),
+        conferma: document.getElementById('admin_pass2'),
+        esito:    document.getElementById('admin_pass_esito'),
+        bottone:  document.getElementById('admin_avanti')
+      });
+    </script>
 
   <?php elseif ($passo === 4): ?>
     <h2>L'inventario di partenza</h2>
@@ -532,7 +545,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
     <table class="riepilogo">
       <tr><th>Gruppo</th><td><?= h($bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Intestazione</th><td><?= h($bozza['sottotitolo'] . ' ' . $bozza['nome_gruppo']) ?></td></tr>
-      <tr><th>Logo</th><td><?= !empty($bozza['logo']) ? 'caricato' : 'nessuno, resta il pallino giallo' ?></td></tr>
+      <tr><th>Logo</th><td><?= !empty($bozza['logo']) ? 'caricato' : 'nessuno, resta il pallino di serie' ?></td></tr>
       <tr><th>Amministratore</th><td><?= h($bozza['admin']['nome']) ?> (utente <?= h($bozza['admin']['user']) ?>)</td></tr>
       <tr><th>Area soci</th><td><?= ($bozza['codice_soci'] ?? '') === '' ? 'aperta a chi ha il link' : 'protetta da codice, ricordato ' . (int)$bozza['codice_giorni'] . ' giorni' ?></td></tr>
       <tr><th>Prelievo in ritardo</th><td>dopo <?= (int)$bozza['giorni_ritardo'] ?> giorni</td></tr>

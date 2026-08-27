@@ -17,7 +17,7 @@ $token = csrf();
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=2">
+<link rel="stylesheet" href="assets/style.css?v=4">
 </head>
 <body data-csrf="<?= h($token) ?>">
 
@@ -129,10 +129,20 @@ $token = csrf();
         <option value="parziale">Rientrati in parte</option>
         <option value="chiuso">Chiusi</option>
       </select>
-      <input type="date" id="st-dal" style="max-width:170px">
-      <input type="date" id="st-al" style="max-width:170px">
+      <input type="date" id="st-dal" style="max-width:170px" title="Dalla data di uscita">
+      <input type="date" id="st-al" style="max-width:170px" title="Fino alla data di uscita">
       <span class="spinta"></span>
-      <a class="bottone chiaro" href="export.php?cosa=storico">Scarica CSV</a>
+      <button class="bottone chiaro" id="btn-pulisci-chiusi">Elimina i chiusi&hellip;</button>
+      <a class="bottone chiaro" id="csv-storico" href="export.php?cosa=storico">Scarica CSV</a>
+    </div>
+
+    <div class="avviso">
+      <strong>Materiale prestato nel periodo</strong>
+      <span id="st-periodo" class="meta" style="text-transform:none;letter-spacing:0"></span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <a class="bottone chiaro mini" id="csv-prestato" href="export.php?cosa=prestato">CSV dettaglio</a>
+        <a class="bottone chiaro mini" id="csv-prestato-riep" href="export.php?cosa=prestato_riepilogo">CSV riepilogo</a>
+      </div>
     </div>
     <div class="riquadro tabella-scroll">
       <table id="tab-storico">
@@ -171,7 +181,9 @@ $token = csrf();
       <div class="riquadro"><div class="corpo">
         <label class="campo"><span>Nome e cognome</span><input type="text" id="u-nome"></label>
         <label class="campo"><span>Nome utente</span><input type="text" id="u-user" autocomplete="off"></label>
-        <label class="campo"><span>Password (almeno 8 caratteri)</span><input type="password" id="u-pass" autocomplete="new-password"></label>
+        <label class="campo"><span>Password</span><input type="password" id="u-pass" autocomplete="new-password"></label>
+        <label class="campo"><span>Ripeti la password</span><input type="password" id="u-pass2" autocomplete="new-password"></label>
+        <ul class="regole-pass" id="u-pass-esito"></ul>
         <button class="bottone" id="btn-nuovo-utente">Aggiungi amministratore</button>
       </div></div>
     </div>
@@ -247,6 +259,7 @@ $token = csrf();
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/dashboard.js?v=2"></script>
+<script src="assets/password.js?v=1"></script>
+<script src="assets/dashboard.js?v=3"></script>
 </body>
 </html>

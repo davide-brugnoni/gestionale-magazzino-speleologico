@@ -96,6 +96,7 @@
     $('#velo-tit').textContent = titolo;
     $('#velo-corpo').innerHTML = html;
     $('#velo-ok').textContent = etichetta || 'Conferma';
+    $('#velo-ok').disabled = false;
     okHandler = onOk;
     $('#velo').hidden = false;
     var primo = $('#velo-corpo input, #velo-corpo select, #velo-corpo textarea');
@@ -495,9 +496,29 @@
         '<td class="num">' + (p.residui || '—') + '</td>' +
         '<td class="num">' + (p.persi ? '<span class="tag male">' + p.persi + '</span>' : '—') + '</td>' +
         '<td>' + statoTag(p.stato) + '</td>' +
-        '<td style="text-align:right"><button class="bottone chiaro mini" data-espandi="' + esc(p.id) + '">Dettagli</button></td>' +
+        '<td class="azioni"><span class="azioni-riga">' +
+          '<button class="bottone chiaro mini" data-espandi="' + esc(p.id) + '">Dettagli</button>' +
+          (p.stato === 'chiuso'
+            ? ' <button class="bottone chiaro mini stretto" data-elimina-prestito="' + esc(p.id) +
+              '" title="Cancella il file di questo prelievo">Elimina</button>'
+            : '') +
+        '</span></td>' +
       '</tr>' + dettaglio;
     }).join('') : '<tr><td colspan="8" class="vuoto" style="padding:22px 12px">Nessun prelievo con questi filtri.</td></tr>';
+  }
+
+  // I tre scarichi dello Storico seguono le date scelte nei filtri.
+  function aggiornaLinkExport() {
+    var dal = $('#st-dal').value;
+    var al  = $('#st-al').value;
+    var coda = (dal ? '&dal=' + dal : '') + (al ? '&al=' + al : '');
+
+    [['#csv-storico', 'storico'], ['#csv-prestato', 'prestato'], ['#csv-prestato-riep', 'prestato_riepilogo']]
+      .forEach(function (v) { $(v[0]).href = 'export.php?cosa=' + v[1] + coda; });
+
+    $('#st-periodo').textContent = (dal || al)
+      ? ' — prelievi usciti ' + (dal ? 'dal ' + data(dal) : '') + (dal && al ? ' ' : '') + (al ? 'al ' + data(al) : '') + '.'
+      : ' — nessuna data scelta: scarica tutto. Imposta le due date qui sopra per limitare il periodo.';
   }
 
   // ---------------------------------------------------------- movimenti
@@ -584,6 +605,53 @@
       .catch(function () { btn.disabled = false; toast('Server non raggiungibile.', 'male'); });
   }
 
+  // ---------------------------------------------------------- pulizia archivio
+
+  function contati(n) {
+    return n === 1 ? '1 prelievo' : n + ' prelievi';
+  }
+
+  function chiusiPrimaDel(giorno) {
+    return D.storico.filter(function (p) {
+      if (p.stato !== 'chiuso') return false;
+      var quando = (p.chiuso_il || p.uscita || '').slice(0, 10);
+      return quando !== '' && quando < giorno;
+    });
+  }
+
+  function pannelloPulizia() {
+    var d = new Date();
+    d.setFullYear(d.getFullYear() - 2);
+    var predefinita = d.toISOString().slice(0, 10);
+
+    apriPannello('Elimina i prelievi chiusi',
+      '<div class="avviso">Vengono cancellati i file dei prelievi <strong>completamente riconsegnati</strong> ' +
+        'chiusi prima della data scelta. Le giacenze non cambiano e nei movimenti resta la nota.</div>' +
+      '<label class="campo"><span>Elimina i chiusi prima del</span>' +
+        '<input type="date" id="pu-data" value="' + predefinita + '"></label>' +
+      '<p class="meta" id="pu-conta" style="text-transform:none;letter-spacing:0"></p>',
+      function () {
+        var giorno = $('#pu-data').value;
+        if (!giorno) { toast('Scegli una data.', 'male'); return; }
+        var quanti = chiusiPrimaDel(giorno).length;
+        if (!quanti) { toast('Non c\'e\' niente da eliminare prima di quella data.', 'male'); return; }
+        if (!confirm('Elimino ' + contati(quanti) + ' chiusi? I file spariscono per sempre.')) return;
+        scrivi('prestiti_pulisci', { prima_del: giorno }, 'Archivio ripulito.')
+          .then(function (ok) { if (ok) chiudiPannello(); });
+      }, 'Elimina');
+
+    function conta() {
+      var giorno = $('#pu-data').value;
+      var quanti = giorno ? chiusiPrimaDel(giorno).length : 0;
+      $('#pu-conta').textContent = giorno
+        ? (quanti ? 'Verrebbero eliminati ' + contati(quanti) + '.' : 'Nessun prelievo chiuso prima di questa data.')
+        : 'Scegli una data.';
+      $('#velo-ok').disabled = !quanti;
+    }
+    $('#pu-data').addEventListener('input', conta);
+    conta();
+  }
+
   // ---------------------------------------------------------- importazione
 
   function pannelloImporta() {
@@ -631,7 +699,7 @@
       return;
     }
 
-    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-utente],[data-articolo]');
+    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-prestito],[data-elimina-utente],[data-articolo]');
     if (!t) return;
 
     if (t.hasAttribute('data-vai')) {
@@ -648,6 +716,14 @@
     if (t.hasAttribute('data-espandi')) {
       var r = $('#det-' + t.getAttribute('data-espandi'));
       if (r) { r.hidden = !r.hidden; t.textContent = r.hidden ? 'Dettagli' : 'Nascondi'; }
+      return;
+    }
+    if (t.hasAttribute('data-elimina-prestito')) {
+      var idP = t.getAttribute('data-elimina-prestito');
+      var pre = D.storico.filter(function (x) { return x.id === idP; })[0];
+      if (!confirm('Elimino il prelievo' + (pre ? ' di ' + pre.persona : '') + '?\n\n' +
+                   'Il file sparisce per sempre. Le giacenze non cambiano: il materiale e\' gia\' rientrato.')) return;
+      scrivi('prestito_elimina', { id: idP }, 'Prelievo eliminato.');
       return;
     }
     if (t.hasAttribute('data-elimina-utente')) {
@@ -675,17 +751,33 @@
   $('#btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
   ['#i-nome', '#i-sotto'].forEach(function (s) { $(s).addEventListener('input', anteprimaTestata); });
 
+  var controlloPass = window.ControlloPassword.collega({
+    pass:     $('#u-pass'),
+    conferma: $('#u-pass2'),
+    esito:    $('#u-pass-esito'),
+    bottone:  $('#btn-nuovo-utente')
+  });
+
   $('#btn-nuovo-utente').addEventListener('click', function () {
+    if (!controlloPass.valida()) { toast('La password non rispetta ancora le regole.', 'male'); return; }
     scrivi('utente_nuovo', {
       nome: $('#u-nome').value, user: $('#u-user').value, password: $('#u-pass').value
     }, 'Amministratore aggiunto.').then(function (ok) {
-      if (ok) { $('#u-nome').value = ''; $('#u-user').value = ''; $('#u-pass').value = ''; }
+      if (ok) {
+        $('#u-nome').value = ''; $('#u-user').value = '';
+        $('#u-pass').value = ''; $('#u-pass2').value = '';
+        controlloPass.aggiorna();
+      }
     });
   });
 
   ['#inv-cerca', '#inv-cat', '#inv-ordine'].forEach(function (s) { $(s).addEventListener('input', disegnaInventario); });
   ['#fuori-cerca', '#fuori-solo-ritardo'].forEach(function (s) { $(s).addEventListener('input', disegnaFuori); });
+  $('#btn-pulisci-chiusi').addEventListener('click', pannelloPulizia);
+
   ['#st-cerca', '#st-stato', '#st-dal', '#st-al'].forEach(function (s) { $(s).addEventListener('input', disegnaStorico); });
+  ['#st-dal', '#st-al'].forEach(function (s) { $(s).addEventListener('input', aggiornaLinkExport); });
+  aggiornaLinkExport();
   $('#mv-cerca').addEventListener('input', disegnaMovimenti);
 
   carica();

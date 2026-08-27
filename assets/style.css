@@ -11,8 +11,8 @@
   --linea:      #D6DDDB;
   --linea-2:    #E9EDEC;
   --grigio:     #6C7C82;
-  --lampada:    #F0A202;
-  --lampada-sf: #FDF1D8;
+  --lampada:    #0696AF;
+  --lampada-sf: #E2F2F6;
   --verde:      #0E7C6B;
   --verde-sf:   #E0F0ED;
   --rosso:      #B23A2E;
@@ -61,8 +61,8 @@ a { color: var(--ink); }
 
 .marchio .faro {
   width: 30px; height: 30px; border-radius: 50%;
-  background: radial-gradient(circle at 34% 34%, #FFD778 0%, var(--lampada) 45%, #8A5B00 100%);
-  box-shadow: 0 0 0 3px rgba(240,162,2,.18), 0 0 22px rgba(240,162,2,.45);
+  background: radial-gradient(circle at 34% 34%, #7FD8E8 0%, var(--lampada) 45%, #034A57 100%);
+  box-shadow: 0 0 0 3px rgba(6,150,175,.18), 0 0 22px rgba(6,150,175,.45);
   flex: none;
 }
 
@@ -291,7 +291,7 @@ img.mini { cursor: zoom-in; }
   border-radius: 2px; background: var(--linea-2); color: var(--ink-2); white-space: nowrap;
 }
 .tag.ok      { background: var(--verde-sf);   color: var(--verde); }
-.tag.fuori   { background: var(--lampada-sf); color: #8A5B00; }
+.tag.fuori   { background: var(--lampada-sf); color: #04586A; }
 .tag.male    { background: var(--rosso-sf);   color: var(--rosso); }
 
 /* ---------------- controlli ---------------- */
@@ -322,7 +322,7 @@ textarea { min-height: 68px; resize: vertical; }
 .bottone.chiaro { background: var(--carta); color: var(--ink); border-color: var(--linea); }
 .bottone.chiaro:hover { border-color: var(--ink); background: var(--carta); }
 .bottone.luce { background: var(--lampada); border-color: var(--lampada); color: var(--ink); }
-.bottone.luce:hover { background: #DC9502; border-color: #DC9502; }
+.bottone.luce:hover { background: #05819A; border-color: #05819A; }
 .bottone.pericolo { background: var(--rosso); border-color: var(--rosso); }
 .bottone.mini { font-size: 12px; padding: 5px 10px; }
 .bottone.stretto { font-size: 11.5px; padding: 5px 7px; letter-spacing: .02em; }
@@ -330,6 +330,17 @@ td.azioni { padding-left: 4px; padding-right: 10px; }
 .azioni-riga { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
 
 :focus-visible { outline: 2px solid var(--lampada); outline-offset: 2px; }
+
+/* controllo della password mentre si digita */
+.regole-pass {
+  list-style: none; margin: -4px 0 14px; padding: 0;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.7;
+}
+.regole-pass li { display: flex; align-items: baseline; gap: 7px; color: var(--grigio); }
+.regole-pass li span { width: 11px; flex: none; text-align: center; font-weight: 500; }
+.regole-pass li.si { color: var(--verde); }
+.regole-pass li.no { color: var(--rosso); }
+.regole-pass li.attesa { color: var(--grigio); }
 
 .riga-controlli { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
 .riga-controlli input[type=search] { max-width: 280px; }
