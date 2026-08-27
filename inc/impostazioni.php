@@ -1,0 +1,56 @@
+<?php
+// ---------------------------------------------------------------
+// Impostazioni dell'applicativo, decise durante l'installazione
+// e modificabili poi dalla dashboard.
+// ---------------------------------------------------------------
+
+function impostazioni_predefinite(): array
+{
+    return [
+        'nome_gruppo'       => 'Gruppo Speleo',
+        'sottotitolo'       => 'Gestionale magazzino',
+        'logo'              => '',
+        'codice_soci_hash'  => '',      // vuoto = area soci aperta
+        'codice_giorni'     => 90,
+        'giorni_ritardo'    => 14,
+        'segreto'           => '',      // usato per firmare il cookie dei soci
+        'installato_il'     => '',
+    ];
+}
+
+function impostazioni(bool $ricarica = false): array
+{
+    static $cache = null;
+    if ($cache === null || $ricarica) {
+        $salvate = store_read('impostazioni');
+        $cache   = array_merge(impostazioni_predefinite(), is_array($salvate) ? $salvate : []);
+    }
+    return $cache;
+}
+
+function impostazione(string $chiave, $altrimenti = null)
+{
+    $i = impostazioni();
+    return $i[$chiave] ?? $altrimenti;
+}
+
+function salva_impostazioni(array $nuove): void
+{
+    store_transazione(function () use ($nuove) {
+        $attuali = array_merge(impostazioni_predefinite(), store_read('impostazioni'));
+        store_write('impostazioni', array_merge($attuali, $nuove));
+    });
+    impostazioni(true);
+}
+
+/** L'installazione e' stata completata? */
+function installato(): bool
+{
+    return is_file(DATA_DIR . '/.installato');
+}
+
+function segna_installato(): void
+{
+    file_put_contents(DATA_DIR . '/.installato', date('c') . "\n");
+    @chmod(DATA_DIR . '/.installato', 0664);
+}
