@@ -592,9 +592,10 @@
 
   function disegnaColori() {
     var i = D.impostazioni || {};
-    $('#i-col-luce').value  = coloreCorrente(i.colore_luce, '--lampada');
-    $('#i-col-fondo').value = coloreCorrente(i.colore_fondo, '--fondo');
-    $('#i-col-ink').value   = coloreCorrente(i.colore_inchiostro, '--ink');
+    $('#i-col-luce').value       = coloreCorrente(i.colore_luce, '--lampada');
+    $('#i-col-luce-testo').value = coloreCorrente(i.colore_luce_testo, '--lampada-testo');
+    $('#i-col-fondo').value      = coloreCorrente(i.colore_fondo, '--fondo');
+    $('#i-col-ink').value        = coloreCorrente(i.colore_inchiostro, '--ink');
 
     var raggio = i.raggio;
     if (raggio === '' || raggio == null) {
@@ -611,6 +612,7 @@
     if (!box) return;
     box.style.setProperty('--ink', $('#i-col-ink').value);
     box.style.setProperty('--lampada', $('#i-col-luce').value);
+    box.style.setProperty('--lampada-testo', $('#i-col-luce-testo').value);
     box.style.setProperty('--fondo', $('#i-col-fondo').value);
     var r = parseInt($('#i-raggio').value, 10);
     box.style.setProperty('--raggio', (isNaN(r) ? 4 : r) + 'px');
@@ -851,6 +853,7 @@
 
   function agganciaAggiornamenti() {
     $('#i-col-luce').addEventListener('input', anteprimaColori);
+    $('#i-col-luce-testo').addEventListener('input', anteprimaColori);
     $('#i-col-fondo').addEventListener('input', anteprimaColori);
     $('#i-col-ink').addEventListener('input', anteprimaColori);
     $('#i-raggio').addEventListener('input', anteprimaColori);

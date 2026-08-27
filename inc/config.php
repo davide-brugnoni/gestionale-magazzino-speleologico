@@ -157,6 +157,10 @@ function stile_personalizzato_html(): string
         $regole[] = '--lampada:' . $luce;
         $regole[] = '--lampada-sf:' . colore_schiarito($luce, 0.88);
     }
+    $luceTesto = colore_valido(impostazione('colore_luce_testo', ''));
+    if ($luceTesto !== '') {
+        $regole[] = '--lampada-testo:' . $luceTesto;
+    }
     $inchiostro = colore_valido(impostazione('colore_inchiostro', ''));
     if ($inchiostro !== '') {
         $regole[] = '--ink:' . $inchiostro;

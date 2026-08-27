@@ -18,6 +18,7 @@ function impostazioni_predefinite(): array
 
         // Aspetto: vuoto = vale quello che sta in assets/style.css
         'colore_luce'       => '',      // --lampada
+        'colore_luce_testo' => '',      // --lampada-testo, vuoto = bianco
         'colore_inchiostro' => '',      // --ink
         'colore_fondo'      => '',      // --fondo
         'raggio'            => '',      // --raggio, in pixel

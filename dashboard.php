@@ -257,15 +257,17 @@ $token = csrf();
         <div class="due">
           <label class="campo"><span>Colore principale</span>
             <input type="color" name="colore_luce" id="i-col-luce"></label>
-          <label class="campo"><span>Sfondo della pagina</span>
-            <input type="color" name="colore_fondo" id="i-col-fondo"></label>
+          <label class="campo"><span>Scritta dei pulsanti colorati</span>
+            <input type="color" name="colore_luce_testo" id="i-col-luce-testo"></label>
         </div>
         <div class="due">
+          <label class="campo"><span>Sfondo della pagina</span>
+            <input type="color" name="colore_fondo" id="i-col-fondo"></label>
           <label class="campo"><span>Testo e testata</span>
             <input type="color" name="colore_inchiostro" id="i-col-ink"></label>
-          <label class="campo"><span>Angoli stondati (px)</span>
-            <input type="number" name="raggio" id="i-raggio" min="0" max="24" placeholder="4"></label>
         </div>
+        <label class="campo"><span>Angoli stondati (px)</span>
+          <input type="number" name="raggio" id="i-raggio" min="0" max="24" placeholder="4"></label>
         <button class="bottone chiaro" type="button" id="btn-colori-serie" style="margin-top:4px">
           Rimetti i colori di serie</button>
       </div></div>
