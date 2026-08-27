@@ -136,6 +136,24 @@ function foto_cancella(?string $nome): void
     }
 }
 
+/**
+ * Vero se un'altra scheda (diversa da $eccettoId) usa ancora questa foto.
+ * Una stessa foto puo' essere scelta per piu' articoli: prima di
+ * cancellarla dal disco bisogna controllare che non serva ancora altrove.
+ */
+function foto_condivisa(array $inventario, string $nome, string $eccettoId): bool
+{
+    if ($nome === '') {
+        return false;
+    }
+    foreach ($inventario as $a) {
+        if ($a['id'] !== $eccettoId && ($a['foto'] ?? '') === $nome) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function store_read(string $nome): array
 {
     $file = store_path($nome);

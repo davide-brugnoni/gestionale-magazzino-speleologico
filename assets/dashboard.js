@@ -320,7 +320,11 @@
             '<input type="file" id="s-foto" accept="image/*">' +
             '<p class="meta" style="margin:8px 0 0;text-transform:none;letter-spacing:0">' +
               'JPG, PNG o WEBP. Viene ridotta a 640 px e salvata subito.</p>' +
-            (a.foto ? '<button class="bottone chiaro mini" type="button" id="s-foto-togli" style="margin-top:10px">Togli la foto</button>' : '') +
+            '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">' +
+              (a.foto ? '<button class="bottone chiaro mini" type="button" id="s-foto-togli">Togli la foto</button>' : '') +
+              '<button class="bottone chiaro mini" type="button" id="s-foto-sfoglia">Scegli tra le foto già presenti</button>' +
+            '</div>' +
+            '<div class="scegli-foto-griglia" id="s-foto-galleria" hidden></div>' +
           '</div>' +
         '</div>'
       : '<div class="avviso">La foto si aggiunge dalla scheda, dopo aver creato l\'articolo.</div>';
@@ -385,6 +389,12 @@
           });
         });
       }
+      $('#s-foto-sfoglia').addEventListener('click', function () {
+        var galleria = $('#s-foto-galleria');
+        if (galleria.hidden) { disegnaGalleriaFoto(a); }
+        galleria.hidden = !galleria.hidden;
+        this.textContent = galleria.hidden ? 'Scegli tra le foto già presenti' : 'Nascondi le foto già presenti';
+      });
       $('#s-elimina').addEventListener('click', function () {
         if (!confirm('Elimini ' + a.nome + ' dal magazzino? Lo storico dei prelievi resta.')) return;
         scrivi('articolo_elimina', { id: a.id }, 'Articolo eliminato.').then(function (ok) { if (ok) chiudiPannello(); });
@@ -419,6 +429,37 @@
         if (input) input.disabled = false;
         toast('Server non raggiungibile.', 'male');
       });
+  }
+
+  // Le foto gia' caricate per altri articoli si possono riusare cosi'
+  // com'e', senza doverle scaricare dal telefono e ricaricarle daccapo.
+  function disegnaGalleriaFoto(a) {
+    var galleria = $('#s-foto-galleria');
+    var viste = {};
+    var voci = [];
+    D.inventario.forEach(function (x) {
+      if (!x.foto || x.foto === a.foto || viste[x.foto]) return;
+      viste[x.foto] = true;
+      voci.push(x);
+    });
+    if (!voci.length) {
+      galleria.innerHTML = '<p class="meta" style="text-transform:none;letter-spacing:0;margin:8px 0 0">' +
+        'Non ci sono altre foto caricate su altri articoli.</p>';
+      return;
+    }
+    galleria.innerHTML = voci.map(function (x) {
+      return '<button type="button" class="scegli-foto-item" data-foto="' + esc(x.foto) + '" title="Usata da ' + esc(x.nome) + '">' +
+             '<img src="foto/' + encodeURIComponent(x.foto) + '" alt="' + esc(x.nome) + '"></button>';
+    }).join('');
+    $$('.scegli-foto-item', galleria).forEach(function (btn) {
+      btn.addEventListener('click', function () { assegnaFoto(a.id, btn.getAttribute('data-foto')); });
+    });
+  }
+
+  function assegnaFoto(id, nomeFoto) {
+    scrivi('foto_assegna', { id: id, foto: nomeFoto }, 'Foto scelta.').then(function (ok) {
+      if (ok) { chiudiPannello(); }
+    });
   }
 
   // ---------------------------------------------------------- non rientrato
