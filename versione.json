@@ -1,8 +1,11 @@
 {
-  "versione": "0.2.1",
+  "versione": "1.0.0",
   "data": "2026-08-27",
   "php_minimo": "7.4",
   "novita": [
+    "Corretto: i colori scelti in Impostazioni > Aspetto ora vengono salvati davvero",
+    "Corretto: l'avviso di nuova versione si nasconde quando non c'e' nulla da segnalare",
+    "Da qui si riparte con una numerazione delle versioni pulita, a partire da 1.0",
     "Colore della scritta sui pulsanti colorati personalizzabile, di serie bianco",
     "Ogni amministratore puo' cambiare la propria password dalla sezione Accessi",
     "La categoria dell'articolo si sceglie da un vero menu a tendina, con la voce per crearne una nuova",
