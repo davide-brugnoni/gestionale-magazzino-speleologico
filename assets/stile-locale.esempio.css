@@ -1,0 +1,40 @@
+/* =========================================================
+   Il TUO foglio di stile.
+
+   Come si usa: copia questo file come  assets/stile-locale.css
+   e scrivici dentro quello che vuoi cambiare.
+
+   assets/stile-locale.css non fa parte del pacchetto: quando
+   aggiorni l'applicativo non viene mai sovrascritto. E' il posto
+   giusto per ogni modifica che prima avresti fatto dentro
+   assets/style.css.
+
+   Viene caricato dopo style.css, quindi quello che scrivi qui ha
+   sempre la meglio.
+
+   Per i colori principali non serve questo file: si cambiano
+   dalla dashboard, in Impostazioni > Aspetto.
+   ========================================================= */
+
+/* Esempio: tutti i colori a mano, se il pannello non basta.
+:root {
+  --ink:        #0D1418;   fondo scuro della testata e del testo
+  --ink-2:      #1C282E;
+  --fondo:      #EEF1F0;   sfondo della pagina
+  --carta:      #FFFFFF;   sfondo dei riquadri
+  --linea:      #D6DDDB;
+  --lampada:    #0696AF;   il colore che segnala le cose importanti
+  --lampada-sf: #E2F2F6;
+  --verde:      #0E7C6B;   materiale disponibile
+  --rosso:      #B23A2E;   ritardi e mancanze
+  --raggio:     4px;       quanto sono stondati gli angoli
+}
+*/
+
+/* Esempio: un carattere diverso per i titoli.
+h1, h2, .titolo-sez { font-family: Georgia, "Times New Roman", serif; }
+*/
+
+/* Esempio: nascondere la scritta in fondo alla dashboard.
+.pie { display: none; }
+*/

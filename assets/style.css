@@ -491,6 +491,23 @@ td.azioni { padding-left: 4px; padding-right: 10px; }
 .palla.no { background: var(--rosso); }
 .palla.forse { background: var(--lampada); color: var(--ink); }
 
+/* Il pallino sulla linguetta quando c'e' una versione nuova */
+.pallino {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--lampada); margin-left: 6px; vertical-align: middle;
+}
+
+/* Elenchi numerati delle istruzioni */
+.guida-passi { font-size: 13.5px; color: var(--grigio); line-height: 1.6; margin: 0; padding-left: 20px; }
+.guida-passi li { margin-bottom: 8px; }
+.guida-passi code {
+  font-family: var(--mono); font-size: 12.5px; background: var(--fondo);
+  padding: 1px 5px; border-radius: 2px;
+}
+
+/* Il selettore di colore, che di suo e' bruttino */
+input[type="color"] { height: 38px; padding: 3px; cursor: pointer; }
+
 .due { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .riga-spunta { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 12px; }
 .riga-spunta input { width: auto; }

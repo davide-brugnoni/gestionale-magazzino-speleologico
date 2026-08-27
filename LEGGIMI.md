@@ -174,9 +174,14 @@ ridimensionamento: funziona lo stesso, pesa solo di piu'.
 | `data/movimenti.json` | Acquisti, scarti, rettifiche, perdite |
 | `data/utenti.json` | Amministratori (solo hash della password) |
 | `data/tentativi.json` | Contatore dei tentativi di accesso falliti |
-| `data/impostazioni.json` | Nome del gruppo, logo, codice soci, preferenze |
+| `data/impostazioni.json` | Nome del gruppo, logo, codice soci, colori, preferenze |
+| `data/aggiornamenti.json` | Esito dell'ultimo controllo delle nuove versioni |
 | `data/.installato` | Segna che l'installazione è finita |
 | `foto/` | Le immagini degli articoli |
+
+Nessuno di questi file fa parte del pacchetto: quando scarichi una versione nuova,
+`data/` e `foto/` arrivano vuote, con dentro il solo `.htaccess` che le protegge.
+È per questo che aggiornare non può cancellare il magazzino.
 
 Le scritture usano un lock esclusivo e la sostituzione atomica del file, quindi
 due persone che salvano nello stesso momento non si sovrascrivono a vicenda.
@@ -245,8 +250,87 @@ Senza date si scarica tutto. Il periodo si conta sulla **data di uscita** del pr
 
 ## Se vuoi cambiare qualcosa
 
-- Nome del gruppo, logo, codice soci, giorni di ritardo: **Gestione → Impostazioni**
-- Cartelle dei dati e delle foto, peso massimo e dimensione delle immagini: `inc/config.php`
-- Colori e caratteri: le variabili in cima ad `assets/style.css`
-- I caratteri arrivano da Google Fonts. Se il server è offline il sito resta
-  leggibile: c'è già il fallback di sistema.
+La regola è una sola: **non modificare i file del programma**. Al prossimo
+aggiornamento verrebbero sovrascritti e le tue modifiche sparirebbero. Per ogni
+cosa c'è un posto che l'aggiornamento non tocca mai.
+
+| Cosa | Dove si cambia |
+|---|---|
+| Nome del gruppo, logo, codice soci, giorni di ritardo | **Gestione → Impostazioni** |
+| Colori principali e angoli stondati | **Gestione → Impostazioni → Aspetto** |
+| Cartelle dei dati e delle foto, peso e dimensione delle immagini, fuso orario | `inc/config-locale.php` |
+| Tutto il resto dell'aspetto (caratteri, spaziature, dettagli) | `assets/stile-locale.css` |
+
+I due file locali non esistono di serie: si creano copiando i modelli che trovi
+già nel pacchetto.
+
+```
+cp inc/config-locale.esempio.php inc/config-locale.php
+cp assets/stile-locale.esempio.css assets/stile-locale.css
+```
+
+Dentro ci sono le istruzioni e gli esempi commentati. Da quel momento sono roba
+tua: non fanno parte del pacchetto, non vengono mai sovrascritti, e non c'è più
+niente da riportare a mano dopo un aggiornamento.
+
+I caratteri arrivano da Google Fonts. Se il server è offline il sito resta
+leggibile: c'è già il fallback di sistema.
+
+## Aggiornare l'applicativo
+
+Quando esce una versione nuova, chi entra in gestione la vede: **Gestione →
+Aggiornamenti** dice che versione c'è installata, se ne è uscita una più recente
+e cosa cambia. Il controllo passa da GitHub una volta ogni dodici ore e si può
+spegnere del tutto.
+
+L'aggiornamento **non è automatico, per scelta**. Perché lo fosse, il server web
+dovrebbe poter riscrivere i file `.php` del sito: da quel momento qualunque falla
+diventerebbe una porta di servizio permanente, e la stessa cosa vale per chiunque
+riuscisse a entrare nell'account GitHub del progetto. Oggi il programma è in sola
+lettura e resta così: i file li carichi tu, quando decidi tu.
+
+Nella stessa scheda trovi le due cose che servono prima di farlo:
+
+1. **Scarica i dati** — uno zip con inventario, prelievi, movimenti, accessi e
+   impostazioni. Le foto non ci sono: stanno in `foto/` e l'aggiornamento non le
+   tocca.
+2. **Cosa hai modificato a mano** — l'applicativo conosce le impronte dei propri
+   file, quindi ti dice esattamente quali hai toccato e dove riportare quelle
+   modifiche.
+
+Poi, con il client FTP:
+
+- carica tutto **tranne `data/` e `foto/`** — lì dentro c'è il tuo magazzino;
+- **non caricare `installa.php`**: si era cancellato da solo a installazione
+  finita, e rimetterlo online aprirebbe la procedura guidata a chiunque conosca
+  l'indirizzo;
+- non sovrascrivere `inc/config-locale.php` e `assets/stile-locale.css`, né il
+  `.htaccess` della cartella principale se ci hai messo mano (per esempio per
+  forzare l'HTTPS): sono le regole del tuo server, e una sbagliata manda in
+  errore tutto il sito;
+- aspetta un minuto prima di aprire il sito: molti server tengono in memoria il
+  programma per qualche secondo (è OPcache), quindi appena finito il caricamento
+  potresti vedere ancora la versione vecchia o un misto delle due. Passa da sé, e
+  nel frattempo non si rompe niente;
+- poi apri il sito: se il formato dei dati è cambiato, viene sistemato da solo al
+  primo caricamento di pagina;
+- torna in **Aggiornamenti** e ricarica. Il numero di versione deve essere
+  cambiato: se dopo qualche minuto è ancora quello vecchio, i file non sono
+  arrivati dove dovevano.
+
+### Pubblicare una versione (per chi sviluppa)
+
+1. alza `versione` in `versione.json`
+2. scrivi le `novita`
+3. `git commit`, poi `git tag v0.3.0 && git push origin v0.3.0`
+
+Il resto lo fa `.github/workflows/rilascio.yml`: controlla che tag e
+`versione.json` combacino, verifica la sintassi PHP con la versione minima
+dichiarata, genera `manifest.json` e pubblica la Release con il pacchetto pronto.
+
+Se una versione cambia il formato dei dati, va aggiunta una migrazione in
+`inc/migrazioni.php`, con in cima le regole per scriverne. Le due che contano:
+**solo aggiunte** — mai togliere o rinominare un campo che la versione precedente
+legge — e **il traguardo si legge dall'elenco delle migrazioni, non da
+`versione.json`**: caricando i file via FTP arrivano uno alla volta, e un numero
+che arrivasse prima del codice che lo implementa farebbe saltare la migrazione.

@@ -4,6 +4,7 @@
 // ---------------------------------------------------------------
 require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/importa.php';
+require_once __DIR__ . '/inc/aggiornamenti.php';
 store_init();
 
 header('Content-Type: application/json; charset=utf-8');
@@ -364,10 +365,16 @@ case 'stato':
             'giorni_ritardo' => GIORNI_RITARDO,
             'codice_giorni'  => CODICE_GIORNI,
             'area_protetta'  => serve_codice_soci(),
+            'colore_luce'       => (string)impostazione('colore_luce', ''),
+            'colore_inchiostro' => (string)impostazione('colore_inchiostro', ''),
+            'colore_fondo'      => (string)impostazione('colore_fondo', ''),
+            'raggio'            => (string)impostazione('raggio', ''),
         ],
         'utenti'         => array_map(fn($u) => ['id' => $u['id'], 'user' => $u['user'], 'nome' => $u['nome']], store_read('utenti')),
         'io'             => $_SESSION['utente'],
         'giorni_ritardo' => GIORNI_RITARDO,
+        'versione'       => APP_VERSIONE,
+        'responsabile'   => responsabile_aggiornamenti(),
     ]);
 
 // ---- carico / scarico / rettifica giacenza ----------------------
@@ -687,6 +694,33 @@ case 'impostazioni_salva':
         'codice_giorni'  => max(1, (int)($_POST['codice_giorni'] ?? 90)),
     ];
 
+    // ---- aspetto. Questi valori finiscono dentro un <style>, quindi
+    // si accetta solo la forma #rrggbb: qui h() non basterebbe.
+    if (!empty($_POST['colori_di_serie'])) {
+        $nuove['colore_luce']       = '';
+        $nuove['colore_inchiostro'] = '';
+        $nuove['colore_fondo']      = '';
+        $nuove['raggio']            = '';
+    } else {
+        foreach (['colore_luce', 'colore_inchiostro', 'colore_fondo'] as $chiave) {
+            if (!isset($_POST[$chiave])) {
+                continue;
+            }
+            $valore = trim((string)$_POST[$chiave]);
+            if ($valore !== '' && colore_valido($valore) === '') {
+                errore('Il colore scelto non e\' valido: serve la forma #rrggbb.');
+            }
+            $nuove[$chiave] = colore_valido($valore);
+        }
+        if (isset($_POST['raggio'])) {
+            $raggio = trim((string)$_POST['raggio']);
+            if ($raggio !== '' && (!ctype_digit($raggio) || (int)$raggio > 24)) {
+                errore('Gli angoli devono essere un numero da 0 a 24.');
+            }
+            $nuove['raggio'] = $raggio === '' ? '' : (string)(int)$raggio;
+        }
+    }
+
     if (!empty($_FILES['logo']['name'])) {
         $caricato = foto_salva('logo-gruppo', $_FILES['logo']);
         if (!$caricato['ok']) {
@@ -814,6 +848,74 @@ case 'foto_elimina':
     });
 
     risposta($esito, $esito['ok'] ? 200 : 400);
+
+// ---- aggiornamenti ----------------------------------------------
+// Qui non si scarica e non si installa niente: si guarda soltanto se
+// e' uscita una versione nuova e si aiuta chi deve caricarla a mano.
+
+case 'aggiornamenti_controlla':
+    solo_admin();
+    $forza = isset($_GET['forza']);
+    $esito = agg_controlla($forza);
+    $esito['responsabile']    = responsabile_aggiornamenti();
+    $esito['sono_io']         = sono_responsabile();
+    $esito['php']             = PHP_VERSION;
+    // una versione che chiede un PHP piu' recente va detta, altrimenti
+    // l'installazione resta ferma per sempre senza che si capisca perche'
+    if (!empty($esito['php_minimo']) && version_compare(PHP_VERSION, $esito['php_minimo'], '<')) {
+        $esito['php_insufficiente'] = true;
+    }
+    risposta($esito);
+
+case 'stato_file':
+    solo_admin();
+    $modificati = agg_file_modificati();
+    foreach ($modificati['file'] as $k => $m) {
+        $modificati['file'][$k]['consiglio'] = agg_consiglio($m['file']);
+    }
+    risposta([
+        'ok'       => true,
+        'versione' => APP_VERSIONE,
+        'noto'     => $modificati['noto'],
+        'file'     => $modificati['file'],
+        'locali'   => [
+            'inc/config-locale.php'   => is_file(__DIR__ . '/inc/config-locale.php'),
+            'assets/stile-locale.css' => is_file(__DIR__ . '/assets/stile-locale.css'),
+        ],
+    ]);
+
+case 'backup_scarica':
+    solo_admin();
+    if (!csrf_valido($_GET['csrf'] ?? null)) {
+        errore('Sessione non valida. Ricarica la pagina.', 419);
+    }
+    $backup = agg_backup_crea();
+    if (!$backup['ok']) {
+        errore($backup['errore']);
+    }
+    header('Content-Type: application/zip');
+    header('Content-Disposition: attachment; filename="magazzino-' . $backup['nome'] . '"');
+    header('Content-Length: ' . filesize($backup['file']));
+    header('Cache-Control: no-store');
+    readfile($backup['file']);
+    @unlink($backup['file']);          // era di passaggio: non resta in giro
+    exit;
+
+case 'responsabile_salva':
+    solo_admin();
+    verifica_csrf($in);
+    $idScelto = (string)($in['id'] ?? '');
+    $trovato  = false;
+    foreach (store_read('utenti') as $u) {
+        if ($u['id'] === $idScelto) {
+            $trovato = true;
+        }
+    }
+    if (!$trovato) {
+        errore('Amministratore non trovato.');
+    }
+    salva_impostazioni(['responsabile_aggiornamenti' => $idScelto]);
+    risposta(['ok' => true]);
 
 default:
     errore('Azione sconosciuta.', 404);

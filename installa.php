@@ -8,8 +8,17 @@ require_once __DIR__ . '/inc/config.php';
 require_once __DIR__ . '/inc/importa.php';
 store_init();
 
-// A installazione fatta questa pagina non esiste piu'
-if (installato()) {
+// A installazione fatta questa pagina non esiste piu'.
+//
+// Unica eccezione: la schermata di riepilogo e il pulsante che cancella
+// questo file. Arrivano subito dopo l'installazione, quando chi ha
+// appena finito e' gia' entrato come amministratore. Senza questa
+// eccezione il riepilogo non si vedrebbe mai e installa.php resterebbe
+// sul server per sempre, che e' proprio quello che si vuole evitare.
+$chiusura = e_admin()
+    && (!empty($_GET['fatto']) || ($_POST['azione'] ?? '') === 'pulisci');
+
+if (installato() && !$chiusura) {
     header('Location: index.php');
     exit;
 }
@@ -19,6 +28,21 @@ if (installato()) {
 function permessi_ok(string $dir): bool
 {
     return is_dir($dir) && is_writable($dir);
+}
+
+/**
+ * L'inventario di esempio che viaggia nel pacchetto.
+ * Sta in esempi/, non in data/: cosi' un aggiornamento non puo'
+ * mai finire sopra il magazzino vero.
+ */
+function esempio_inventario(): array
+{
+    $file = __DIR__ . '/esempi/inventario-esempio.json';
+    if (!is_file($file)) {
+        return [];
+    }
+    $letto = json_decode((string)file_get_contents($file), true);
+    return is_array($letto) ? $letto : [];
 }
 
 function sistema_permessi(): array
@@ -197,6 +221,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'giorni_ritardo' => $bozza['giorni_ritardo'] ?? 14,
                     'segreto'        => bin2hex(random_bytes(16)),
                     'installato_il'  => date('c'),
+                    // dati gia' nel formato di questa versione: niente da migrare
+                    'schema_versione' => migrazioni_bersaglio(),
                 ]);
                 imposta_codice_soci($bozza['codice_soci'] ?? '');
 
@@ -204,6 +230,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $creato = utente_crea($bozza['admin']['user'], $bozza['admin']['pass'], $bozza['admin']['nome']);
                 if (!$creato['ok']) {
                     $errore = $creato['errore'];
+                } else {
+                    // di chi e' il compito di tenere aggiornato l'applicativo:
+                    // si parte da chi installa, poi si puo' passare la mano
+                    $utenti = store_read('utenti');
+                    if (!empty($utenti[0]['id'])) {
+                        salva_impostazioni(['responsabile_aggiornamenti' => $utenti[0]['id']]);
+                    }
                 }
 
                 // 3. inventario
@@ -211,10 +244,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $scelta = $bozza['scelta_inventario'] ?? 'vuoto';
                     if ($scelta === 'file' && !empty($bozza['import']['articoli'])) {
                         salva_importazione($bozza['import']['articoli'], 'sostituisci');
-                    } elseif ($scelta === 'vuoto') {
+                    } elseif ($scelta === 'esempio') {
+                        store_write('inventario', esempio_inventario());
+                    } else {
                         store_write('inventario', []);
                     }
-                    // 'esempio' lascia l'inventario precaricato com'e'
 
                     // 4. permessi e chiusura
                     sistema_permessi();
@@ -265,7 +299,8 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
+<?= aspetto_html() ?>
 </head>
 <body class="installa">
 
@@ -398,7 +433,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       </div>
     </form>
 
-    <script src="assets/password.js?v=1"></script>
+    <script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
     <script>
       // il bottone si blocca solo adesso: senza JavaScript il modulo resta usabile
       // e a fare da rete c'e' password_valida() lato server
@@ -519,7 +554,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
             <button class="bottone chiaro" type="submit">Parti da zero</button>
           </form>
 
-          <?php $precaricati = count(store_read('inventario')); ?>
+          <?php $precaricati = count(esempio_inventario()); ?>
           <?php if ($precaricati): ?>
             <form method="post" style="margin-top:18px">
               <input type="hidden" name="csrf" value="<?= h($token) ?>">

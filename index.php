@@ -21,7 +21,8 @@ if (!soci_autorizzato()) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
+<?= aspetto_html() ?>
 </head>
 <body>
 
@@ -136,6 +137,6 @@ if (!soci_autorizzato()) {
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/public.js?v=2"></script>
+<script src="assets/public.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>
 </html>
