@@ -89,6 +89,10 @@ L'inventario di esempio contiene i 57 articoli del file di magazzino attuale
 ## Sicurezza in breve
 
 - **Gestione**: nome utente e password, hash bcrypt, mai in chiaro da nessuna parte.
+- **Password**: almeno 8 caratteri, con una minuscola, una maiuscola e un numero.
+  Si scrive due volte e un elenco sotto ai campi dice cosa manca mentre digiti,
+  sia in installazione sia in **Gestione → Accessi**. Le regole stanno in un posto
+  solo: `password_regole()` in `inc/auth.php`, ripetute in `assets/password.js`.
 - **Area soci**: aperta, oppure protetta da un codice di gruppo (vedi sotto).
 - **Freno agli attacchi**: 5 password sbagliate dallo stesso indirizzo bloccano
   l'accesso 15 minuti, poi 30, 60, fino a 2 ore.
@@ -166,7 +170,7 @@ ridimensionamento: funziona lo stesso, pesa solo di piu'.
 | File | Contenuto |
 |---|---|
 | `data/inventario.json` | Articoli, giacenze, soglie, lista acquisti |
-| `data/prestiti.json` | Ogni prelievo con le sue righe e tutti i rientri |
+| `data/prestiti/` | Una cartella: **un file per ogni prelievo**, con le sue righe e i rientri |
 | `data/movimenti.json` | Acquisti, scarti, rettifiche, perdite |
 | `data/utenti.json` | Amministratori (solo hash della password) |
 | `data/tentativi.json` | Contatore dei tentativi di accesso falliti |
@@ -176,6 +180,15 @@ ridimensionamento: funziona lo stesso, pesa solo di piu'.
 
 Le scritture usano un lock esclusivo e la sostituzione atomica del file, quindi
 due persone che salvano nello stesso momento non si sovrascrivono a vicenda.
+
+Ogni richiesta di prelievo sta nel suo file, `data/prestiti/pre-AAMMGG-xxxxxx.json`:
+si legge e si salva da sola, e quando un prelievo e' stato riconsegnato del tutto
+si puo' cancellare dalla dashboard (**Storico → Elimina**, oppure **Elimina i chiusi…**
+per fare pulizia di tutto quello chiuso prima di una data). Le giacenze non cambiano
+— il materiale e' gia' rientrato — e nei Movimenti resta la nota di cosa e' stato tolto.
+Se vieni da una versione precedente, il vecchio `data/prestiti.json` viene diviso in
+automatico al primo avvio e messo da parte come `prestiti.json.migrato-<data>`:
+puoi cancellarlo a mano quando hai controllato che sia tutto a posto.
 
 Le foto stanno in `foto/`, fuori dai JSON: nell'inventario e' salvato solo il nome del file.
 
@@ -219,6 +232,16 @@ e sposta solo `data/`, che e' la parte delicata.
 Ogni sezione della dashboard ha il suo CSV (punto e virgola, UTF-8 con BOM:
 Excel lo apre senza sistemare gli accenti). Da lì passi in un attimo al foglio
 di calcolo che usate oggi.
+
+Nello **Storico** i due campi data non filtrano solo la tabella: valgono anche per
+gli scarichi. Impostato il periodo che ti interessa trovi due file pronti:
+
+- **CSV dettaglio** — una riga per ogni articolo di ogni prelievo uscito in quel
+  periodo: chi, dove, quando, presi, rientrati, persi, ancora fuori.
+- **CSV riepilogo** — una riga per articolo, con quante volte e' stato prestato,
+  quanti pezzi sono usciti in tutto e quanti sono ancora in giro.
+
+Senza date si scarica tutto. Il periodo si conta sulla **data di uscita** del prelievo.
 
 ## Se vuoi cambiare qualcosa
 

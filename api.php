@@ -56,7 +56,7 @@ switch ($azione) {
 
 case 'catalogo':
     $inv    = inventario_completo();
-    $aperti = array_values(array_filter(store_read('prestiti'), fn($p) => $p['stato'] !== 'chiuso'));
+    $aperti = array_values(array_filter(prestiti_leggi_tutti(), fn($p) => $p['stato'] !== 'chiuso'));
 
     $pubblici = array_map(function ($p) {
         $righe = [];
@@ -137,7 +137,6 @@ case 'prelievo':
             return ['ok' => false, 'errore' => 'Aggiungi almeno un articolo prima di confermare.'];
         }
 
-        $prestiti   = store_read('prestiti');
         $prestito   = [
             'id'             => nuovo_id('pre'),
             'persona'        => $persona,
@@ -151,8 +150,9 @@ case 'prelievo':
             'rientri'        => [],
             'chiuso_il'      => null,
         ];
-        $prestiti[] = $prestito;
-        store_write('prestiti', $prestiti);
+        if (!prestito_salva($prestito)) {
+            return ['ok' => false, 'errore' => 'Non riesco a salvare la richiesta. Controlla i permessi della cartella data/prestiti.'];
+        }
         return ['ok' => true, 'prestito' => $prestito];
     });
 
@@ -170,25 +170,18 @@ case 'riconsegna':
     }
 
     $esito = store_transazione(function () use ($idPrestito, $chi, $righeIn, $in) {
-        $prestiti = store_read('prestiti');
-        $trovato  = null;
-        foreach ($prestiti as $k => $p) {
-            if ($p['id'] === $idPrestito) {
-                $trovato = $k;
-                break;
-            }
-        }
-        if ($trovato === null) {
+        $p = prestito_leggi($idPrestito);
+        if ($p === null) {
             return ['ok' => false, 'errore' => 'Prelievo non trovato.'];
         }
-        if ($prestiti[$trovato]['stato'] === 'chiuso') {
+        if ($p['stato'] === 'chiuso') {
             return ['ok' => false, 'errore' => 'Questo prelievo risulta gia\' chiuso.'];
         }
 
         $perdite   = [];
         $dettaglio = [];
 
-        foreach ($prestiti[$trovato]['righe'] as $i => $riga) {
+        foreach ($p['righe'] as $i => $riga) {
             $residuo = (int)$riga['qta'] - (int)$riga['qta_rientrata'] - (int)$riga['qta_persa'];
             $rese    = 0;
             $perse   = 0;
@@ -204,11 +197,10 @@ case 'riconsegna':
             if ($rese + $perse > $residuo) {
                 return ['ok' => false, 'errore' => 'Su ' . $riga['nome'] . ' risultano fuori solo ' . $residuo . ' pezzi.'];
             }
-            $prestiti[$trovato]['righe'][$i]['qta_rientrata'] += $rese;
-            $prestiti[$trovato]['righe'][$i]['qta_persa']     += $perse;
+            $p['righe'][$i]['qta_rientrata'] += $rese;
+            $p['righe'][$i]['qta_persa']     += $perse;
             if ($nota !== '') {
-                $prestiti[$trovato]['righe'][$i]['note_rientro'] =
-                    trim($prestiti[$trovato]['righe'][$i]['note_rientro'] . ' ' . $nota);
+                $p['righe'][$i]['note_rientro'] = trim($p['righe'][$i]['note_rientro'] . ' ' . $nota);
             }
             if ($perse > 0) {
                 $perdite[] = ['id' => $riga['id_articolo'], 'nome' => $riga['nome'], 'qta' => $perse, 'nota' => $nota];
@@ -226,44 +218,44 @@ case 'riconsegna':
         if ($perdite) {
             $inv = store_read('inventario');
             foreach ($inv as $i => $a) {
-                foreach ($perdite as $p) {
-                    if ($a['id'] === $p['id']) {
-                        $inv[$i]['quantita'] = max(0, (int)$a['quantita'] - $p['qta']);
+                foreach ($perdite as $pd) {
+                    if ($a['id'] === $pd['id']) {
+                        $inv[$i]['quantita'] = max(0, (int)$a['quantita'] - $pd['qta']);
                     }
                 }
             }
             store_write('inventario', $inv);
-            foreach ($perdite as $p) {
+            foreach ($perdite as $pd) {
                 registra_movimento('perdita', [
-                    'id_articolo' => $p['id'],
-                    'nome'        => $p['nome'],
-                    'qta'         => -$p['qta'],
-                    'nota'        => trim('Perso o rotto durante il prelievo ' . $idPrestito . '. ' . $p['nota']),
-                    'da'          => $chi !== '' ? $chi : $prestiti[$trovato]['persona'],
+                    'id_articolo' => $pd['id'],
+                    'nome'        => $pd['nome'],
+                    'qta'         => -$pd['qta'],
+                    'nota'        => trim('Perso o rotto durante il prelievo ' . $idPrestito . '. ' . $pd['nota']),
+                    'da'          => $chi !== '' ? $chi : $p['persona'],
                 ]);
             }
         }
 
-        $prestiti[$trovato]['rientri'][] = [
+        $p['rientri'][] = [
             'quando'    => adesso(),
-            'chi'       => $chi !== '' ? $chi : $prestiti[$trovato]['persona'],
+            'chi'       => $chi !== '' ? $chi : $p['persona'],
             'nota'      => trim((string)($in['nota'] ?? '')),
             'dettaglio' => $dettaglio,
         ];
 
         $aperti = 0;
-        foreach ($prestiti[$trovato]['righe'] as $riga) {
+        foreach ($p['righe'] as $riga) {
             $aperti += (int)$riga['qta'] - (int)$riga['qta_rientrata'] - (int)$riga['qta_persa'];
         }
         if ($aperti === 0) {
-            $prestiti[$trovato]['stato']     = 'chiuso';
-            $prestiti[$trovato]['chiuso_il'] = adesso();
+            $p['stato']     = 'chiuso';
+            $p['chiuso_il'] = adesso();
         } else {
-            $prestiti[$trovato]['stato'] = 'parziale';
+            $p['stato'] = 'parziale';
         }
 
-        store_write('prestiti', $prestiti);
-        return ['ok' => true, 'prestito' => $prestiti[$trovato], 'residui' => $aperti];
+        prestito_salva($p);
+        return ['ok' => true, 'prestito' => $p, 'residui' => $aperti];
     });
 
     risposta($esito, $esito['ok'] ? 200 : 400);
@@ -273,7 +265,7 @@ case 'riconsegna':
 case 'stato':
     solo_admin();
     $inv      = inventario_completo();
-    $prestiti = store_read('prestiti');
+    $prestiti = prestiti_leggi_tutti();
     $movimenti = array_reverse(store_read('movimenti'));
 
     $totale = 0; $fuori = 0; $daComprare = 0; $mancanti = 0;
@@ -413,13 +405,13 @@ case 'giacenza':
             $dopo = $prima + $qta;
             $inv[$indice]['da_comprare'] = max(0, (int)($inv[$indice]['da_comprare'] ?? 0) - $qta);
         } elseif ($tipo === 'scarto') {
-            $fuori = pezzi_fuori(store_read('prestiti'))[$id] ?? 0;
+            $fuori = pezzi_fuori(prestiti_leggi_tutti())[$id] ?? 0;
             if ($prima - $qta < $fuori) {
                 return ['ok' => false, 'errore' => 'Ci sono ' . $fuori . ' pezzi ancora in prestito: non puoi scendere sotto questa quota.'];
             }
             $dopo = max(0, $prima - $qta);
         } else {
-            $fuori = pezzi_fuori(store_read('prestiti'))[$id] ?? 0;
+            $fuori = pezzi_fuori(prestiti_leggi_tutti())[$id] ?? 0;
             if ($qta < $fuori) {
                 return ['ok' => false, 'errore' => 'Ci sono ' . $fuori . ' pezzi ancora in prestito: la giacenza non puo\' essere inferiore.'];
             }
@@ -505,7 +497,7 @@ case 'articolo_elimina':
     $id = (string)($in['id'] ?? '');
 
     $esito = store_transazione(function () use ($id) {
-        $fuori = pezzi_fuori(store_read('prestiti'))[$id] ?? 0;
+        $fuori = pezzi_fuori(prestiti_leggi_tutti())[$id] ?? 0;
         if ($fuori > 0) {
             return ['ok' => false, 'errore' => 'Ci sono ancora ' . $fuori . ' pezzi in prestito. Chiudi prima i rientri.'];
         }
@@ -540,58 +532,125 @@ case 'prestito_chiudi':
     $nota  = trim((string)($in['nota'] ?? ''));
 
     $esito = store_transazione(function () use ($id, $modo, $nota) {
-        $prestiti = store_read('prestiti');
-        $k = null;
-        foreach ($prestiti as $i => $p) {
-            if ($p['id'] === $id) { $k = $i; break; }
-        }
-        if ($k === null) {
+        $p = prestito_leggi($id);
+        if ($p === null) {
             return ['ok' => false, 'errore' => 'Prelievo non trovato.'];
         }
         $perdite   = [];
         $dettaglio = [];
-        foreach ($prestiti[$k]['righe'] as $i => $r) {
+        foreach ($p['righe'] as $i => $r) {
             $residuo = (int)$r['qta'] - (int)$r['qta_rientrata'] - (int)$r['qta_persa'];
             if ($residuo <= 0) { continue; }
             if ($modo === 'perso') {
-                $prestiti[$k]['righe'][$i]['qta_persa'] += $residuo;
+                $p['righe'][$i]['qta_persa'] += $residuo;
                 $perdite[] = ['id' => $r['id_articolo'], 'nome' => $r['nome'], 'qta' => $residuo];
                 $dettaglio[] = ['nome' => $r['nome'], 'rientrate' => 0, 'perse' => $residuo, 'nota' => $nota];
             } else {
-                $prestiti[$k]['righe'][$i]['qta_rientrata'] += $residuo;
+                $p['righe'][$i]['qta_rientrata'] += $residuo;
                 $dettaglio[] = ['nome' => $r['nome'], 'rientrate' => $residuo, 'perse' => 0, 'nota' => $nota];
             }
         }
         if ($perdite) {
             $inv = store_read('inventario');
             foreach ($inv as $i => $a) {
-                foreach ($perdite as $p) {
-                    if ($a['id'] === $p['id']) {
-                        $inv[$i]['quantita'] = max(0, (int)$a['quantita'] - $p['qta']);
+                foreach ($perdite as $pd) {
+                    if ($a['id'] === $pd['id']) {
+                        $inv[$i]['quantita'] = max(0, (int)$a['quantita'] - $pd['qta']);
                     }
                 }
             }
             store_write('inventario', $inv);
-            foreach ($perdite as $p) {
+            foreach ($perdite as $pd) {
                 registra_movimento('perdita', [
-                    'id_articolo' => $p['id'], 'nome' => $p['nome'], 'qta' => -$p['qta'],
+                    'id_articolo' => $pd['id'], 'nome' => $pd['nome'], 'qta' => -$pd['qta'],
                     'nota' => trim('Chiusura amministrativa del prelievo ' . $id . '. ' . $nota),
                 ]);
             }
         }
-        $prestiti[$k]['rientri'][] = [
+        $p['rientri'][] = [
             'quando'    => adesso(),
             'chi'       => ($_SESSION['utente']['nome'] ?? 'admin') . ' (chiusura in dashboard)',
             'nota'      => $nota,
             'dettaglio' => $dettaglio,
         ];
-        $prestiti[$k]['stato']     = 'chiuso';
-        $prestiti[$k]['chiuso_il'] = adesso();
-        store_write('prestiti', $prestiti);
+        $p['stato']     = 'chiuso';
+        $p['chiuso_il'] = adesso();
+        prestito_salva($p);
         return ['ok' => true];
     });
 
     risposta($esito, $esito['ok'] ? 200 : 400);
+
+// ---- eliminazione dei prelievi conclusi ---------------------------
+// Si cancella il file del prelievo: le giacenze non cambiano (i pezzi sono
+// gia' rientrati e le perdite gia' scalate), ma nei movimenti resta la traccia.
+
+case 'prestito_elimina':
+    solo_admin();
+    verifica_csrf($in);
+    $id = (string)($in['id'] ?? '');
+
+    $esito = store_transazione(function () use ($id) {
+        $p = prestito_leggi($id);
+        if ($p === null) {
+            return ['ok' => false, 'errore' => 'Prelievo non trovato.'];
+        }
+        $fuori = 0;
+        foreach ($p['righe'] as $r) {
+            $fuori += (int)$r['qta'] - (int)$r['qta_rientrata'] - (int)$r['qta_persa'];
+        }
+        if (($p['stato'] ?? '') !== 'chiuso' || $fuori > 0) {
+            return ['ok' => false, 'errore' => 'Si possono eliminare solo i prelievi completamente riconsegnati.'];
+        }
+        if (!prestito_elimina($id)) {
+            return ['ok' => false, 'errore' => 'Non riesco a cancellare il file. Controlla i permessi della cartella data/prestiti.'];
+        }
+        registra_movimento('archivio', [
+            'nome' => 'Prelievo di ' . $p['persona'],
+            'qta'  => 0,
+            'nota' => 'Eliminato il prelievo ' . $id . ' del ' . date('d/m/Y', strtotime($p['uscita'])) .
+                      ' (' . count($p['righe']) . (count($p['righe']) === 1 ? ' articolo' : ' articoli') . ', tutto riconsegnato).',
+        ]);
+        return ['ok' => true];
+    });
+
+    risposta($esito, $esito['ok'] ? 200 : 400);
+
+case 'prestiti_pulisci':
+    solo_admin();
+    verifica_csrf($in);
+    $primaDel = (string)($in['prima_del'] ?? '');
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $primaDel)) {
+        errore('Indica la data prima della quale fare pulizia.');
+    }
+
+    $esito = store_transazione(function () use ($primaDel) {
+        $eliminati = 0;
+        foreach (prestiti_leggi_tutti() as $p) {
+            if (($p['stato'] ?? '') !== 'chiuso') {
+                continue;
+            }
+            $quando = substr((string)($p['chiuso_il'] ?: $p['uscita']), 0, 10);
+            if ($quando === '' || $quando >= $primaDel) {
+                continue;
+            }
+            if (prestito_elimina((string)$p['id'])) {
+                $eliminati++;
+            }
+        }
+        if ($eliminati > 0) {
+            registra_movimento('archivio', [
+                'nome' => '',
+                'qta'  => 0,
+                'nota' => ($eliminati === 1
+                              ? 'Un prelievo chiuso prima del ' . date('d/m/Y', strtotime($primaDel)) . ' eliminato dall\'archivio.'
+                              : $eliminati . ' prelievi chiusi prima del ' . date('d/m/Y', strtotime($primaDel)) . ' eliminati dall\'archivio.'),
+            ]);
+        }
+        return ['ok' => true, 'eliminati' => $eliminati];
+    });
+
+    risposta($esito);
 
 // ---- gestione amministratori -------------------------------------
 
@@ -680,7 +739,7 @@ case 'importa':
     }
 
     $modo = ($_POST['modo'] ?? 'aggiungi') === 'sostituisci' ? 'sostituisci' : 'aggiungi';
-    if ($modo === 'sostituisci' && array_sum(pezzi_fuori(store_read('prestiti'))) > 0) {
+    if ($modo === 'sostituisci' && array_sum(pezzi_fuori(prestiti_leggi_tutti())) > 0) {
         errore('C\'e\' attrezzatura ancora in prestito: non posso azzerare il magazzino. Usa "aggiungi ai presenti".');
     }
 

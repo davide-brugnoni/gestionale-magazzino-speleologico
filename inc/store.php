@@ -14,7 +14,7 @@ function store_init(): void
     if (!is_dir(DATA_DIR)) {
         mkdir(DATA_DIR, 0775, true);
     }
-    foreach (['inventario', 'prestiti', 'movimenti', 'utenti', 'tentativi', 'impostazioni'] as $f) {
+    foreach (['inventario', 'movimenti', 'utenti', 'tentativi', 'impostazioni'] as $f) {
         if (!file_exists(store_path($f))) {
             file_put_contents(store_path($f), in_array($f, ['tentativi', 'impostazioni'], true) ? "{}\n" : "[]\n");
         }
@@ -23,6 +23,16 @@ function store_init(): void
     if (!file_exists($ht)) {
         file_put_contents($ht, "Require all denied\nDeny from all\n");
     }
+
+    // ogni prelievo sta in un file suo, dentro data/prestiti/
+    if (!is_dir(prestiti_dir())) {
+        mkdir(prestiti_dir(), 0775, true);
+    }
+    $htPrestiti = prestiti_dir() . '/.htaccess';
+    if (!file_exists($htPrestiti)) {
+        file_put_contents($htPrestiti, "Require all denied\nDeny from all\n");
+    }
+    prestiti_migra();
 
     if (!is_dir(FOTO_DIR)) {
         mkdir(FOTO_DIR, 0775, true);
@@ -187,6 +197,105 @@ function adesso(): string
     return date('c');
 }
 
+// --------------------------- Prelievi, un file ciascuno ---------
+// Ogni richiesta di prelievo vive nel suo file data/prestiti/<id>.json:
+// si sfoglia senza caricare tutto e si puo' cancellare quando serve.
+// Le scritture passano comunque da store_transazione().
+
+function prestiti_dir(): string
+{
+    return DATA_DIR . '/prestiti';
+}
+
+/** Percorso del file di un prelievo. Stringa vuota se l'id non e' utilizzabile. */
+function prestito_file(string $id): string
+{
+    $sicuro = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($id));
+    if ($sicuro === '' || $sicuro[0] === '.') {
+        return '';
+    }
+    return prestiti_dir() . '/' . $sicuro . '.json';
+}
+
+/** Tutti i prelievi, dal piu' vecchio al piu' recente. */
+function prestiti_leggi_tutti(): array
+{
+    $prestiti = [];
+    foreach (glob(prestiti_dir() . '/*.json') ?: [] as $f) {
+        $p = json_decode((string)file_get_contents($f), true);
+        if (is_array($p) && isset($p['id'], $p['righe'])) {
+            $prestiti[] = $p;
+        }
+    }
+    usort($prestiti, fn($a, $b) => strcmp($a['uscita'] ?? '', $b['uscita'] ?? ''));
+    return $prestiti;
+}
+
+function prestito_leggi(string $id): ?array
+{
+    $f = prestito_file($id);
+    if ($f === '' || !is_file($f)) {
+        return null;
+    }
+    $p = json_decode((string)file_get_contents($f), true);
+    return is_array($p) && isset($p['id']) ? $p : null;
+}
+
+/** Scrittura atomica del singolo prelievo. */
+function prestito_salva(array $prestito): bool
+{
+    $f = prestito_file((string)($prestito['id'] ?? ''));
+    if ($f === '') {
+        return false;
+    }
+    if (!is_dir(prestiti_dir())) {
+        mkdir(prestiti_dir(), 0775, true);
+    }
+    $json = json_encode($prestito, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        return false;
+    }
+    $tmp = $f . '.' . getmypid() . '.tmp';
+    if (file_put_contents($tmp, $json . "\n") === false) {
+        return false;
+    }
+    @chmod($tmp, 0664);
+    return rename($tmp, $f);
+}
+
+function prestito_elimina(string $id): bool
+{
+    $f = prestito_file($id);
+    return $f !== '' && is_file($f) && @unlink($f);
+}
+
+/**
+ * Porta il vecchio data/prestiti.json nella cartella, un file per prelievo.
+ * Il file di partenza non si cancella: viene messo da parte, cosi' se
+ * qualcosa va storto i dati sono ancora tutti li'.
+ */
+function prestiti_migra(): void
+{
+    if (!file_exists(store_path('prestiti'))) {
+        return;                                    // gia' fatta: costa un controllo e basta
+    }
+    store_transazione(function () {
+        $vecchio = store_path('prestiti');
+        if (!file_exists($vecchio)) {
+            return;                                // qualcun altro ci e' arrivato prima
+        }
+        $prestiti = json_decode((string)file_get_contents($vecchio), true);
+        if (is_array($prestiti)) {
+            foreach ($prestiti as $p) {
+                if (is_array($p) && !empty($p['id']) && !is_file(prestito_file((string)$p['id']))) {
+                    prestito_salva($p);
+                }
+            }
+        }
+        @rename($vecchio, $vecchio . '.migrato-' . date('Y-m-d-His'));
+    });
+}
+
 // --------------------------- Logica di dominio ------------------
 
 /** Somma dei pezzi ancora fuori, per id articolo. */
@@ -212,7 +321,7 @@ function pezzi_fuori(array $prestiti): array
 function inventario_completo(): array
 {
     $inv       = store_read('inventario');
-    $prestiti  = store_read('prestiti');
+    $prestiti  = prestiti_leggi_tutti();
     $fuori     = pezzi_fuori($prestiti);
 
     foreach ($inv as &$a) {

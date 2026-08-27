@@ -3,6 +3,36 @@
 // Accesso amministratori
 // ---------------------------------------------------------------
 
+// ---------------------------------------------------------------
+// Regole della password. Sono le stesse che assets/password.js
+// mostra mentre si digita: se cambi qui, cambia anche la'.
+// ---------------------------------------------------------------
+
+function password_regole(): array
+{
+    return [
+        ['etichetta' => 'almeno 8 caratteri',      'prova' => '/.{8,}/'],
+        ['etichetta' => 'una lettera minuscola',   'prova' => '/[a-z]/'],
+        ['etichetta' => 'una lettera maiuscola',   'prova' => '/[A-Z]/'],
+        ['etichetta' => 'un numero',               'prova' => '/[0-9]/'],
+    ];
+}
+
+/** Controlla la password contro le regole. Elenca cosa manca. */
+function password_valida(string $password): array
+{
+    $mancanti = [];
+    foreach (password_regole() as $r) {
+        if (!preg_match($r['prova'], $password)) {
+            $mancanti[] = $r['etichetta'];
+        }
+    }
+    if ($mancanti) {
+        return ['ok' => false, 'errore' => 'Alla password manca ancora: ' . implode(', ', $mancanti) . '.'];
+    }
+    return ['ok' => true, 'errore' => ''];
+}
+
 function utenti_esistono(): bool
 {
     return count(store_read('utenti')) > 0;
@@ -11,8 +41,12 @@ function utenti_esistono(): bool
 function utente_crea(string $user, string $password, string $nome): array
 {
     $user = strtolower(trim($user));
-    if ($user === '' || strlen($password) < 8) {
-        return ['ok' => false, 'errore' => 'Serve un nome utente e una password di almeno 8 caratteri.'];
+    if ($user === '') {
+        return ['ok' => false, 'errore' => 'Serve un nome utente.'];
+    }
+    $regola = password_valida($password);
+    if (!$regola['ok']) {
+        return ['ok' => false, 'errore' => $regola['errore']];
     }
     return store_transazione(function () use ($user, $password, $nome) {
         $utenti = store_read('utenti');
