@@ -214,9 +214,9 @@ $token = csrf();
   <!-- ============ IMPOSTAZIONI ============ -->
   <section id="sez-impostazioni" class="sezione">
     <div class="titolo-sez">Il gruppo</div>
+    <form id="form-impostazioni" enctype="multipart/form-data">
     <div class="griglia g2" style="align-items:start">
       <div class="riquadro"><div class="corpo">
-        <form id="form-impostazioni" enctype="multipart/form-data">
           <label class="campo"><span>Nome del gruppo</span><input type="text" name="nome_gruppo" id="i-nome"></label>
           <label class="campo"><span>Dicitura sopra il nome</span><input type="text" name="sottotitolo" id="i-sotto"></label>
 
@@ -243,7 +243,6 @@ $token = csrf();
           <p class="meta" style="text-transform:none;letter-spacing:0">Cambiando il codice, i dispositivi ricordati devono reinserirlo.</p>
 
           <button class="bottone luce" type="button" id="btn-salva-impostazioni" style="margin-top:16px">Salva le impostazioni</button>
-        </form>
       </div></div>
 
       <div class="riquadro"><div class="corpo">
@@ -281,6 +280,7 @@ $token = csrf();
           Rimetti i colori di serie</button>
       </div></div>
     </div>
+    </form>
   </section>
 
   <!-- ============ AGGIORNAMENTI ============ -->
