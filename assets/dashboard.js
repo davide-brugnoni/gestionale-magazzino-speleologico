@@ -294,6 +294,9 @@
     var a = id ? art(id) : null;
     var cats = {};
     D.inventario.forEach(function (x) { cats[x.categoria] = 1; });
+    var catOrdinate = Object.keys(cats).sort();
+    var catAttuale = a ? a.categoria : '';
+    var catNuova = catAttuale === '' || catOrdinate.indexOf(catAttuale) === -1;
 
     var bloccoFoto = a
       ? '<div class="foto-scheda">' +
@@ -312,8 +315,16 @@
 
     apriPannello(a ? 'Scheda articolo' : 'Nuovo articolo',
       bloccoFoto +
-      '<label class="campo"><span>Categoria</span><input type="text" id="s-cat" list="lista-cat" value="' + esc(a ? a.categoria : '') + '">' +
-      '<datalist id="lista-cat">' + Object.keys(cats).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></label>' +
+      '<label class="campo"><span>Categoria</span>' +
+        '<select id="s-cat">' +
+          '<option value="__nuova__"' + (catNuova ? ' selected' : '') + '>+ Nuova categoria…</option>' +
+          catOrdinate.map(function (c) {
+            return '<option value="' + esc(c) + '"' + (!catNuova && c === catAttuale ? ' selected' : '') + '>' + esc(c) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<input type="text" id="s-cat-nuova" placeholder="Nome della nuova categoria" value="' + (catNuova ? esc(catAttuale) : '') + '"' +
+          ' style="margin-top:8px' + (catNuova ? '' : ';display:none') + '">' +
+      '</label>' +
       '<label class="campo"><span>Articolo</span><input type="text" id="s-art" value="' + esc(a ? a.articolo : '') + '" placeholder="Moschettoni, Corde 10mm…"></label>' +
       '<label class="campo"><span>Tipo o misura</span><input type="text" id="s-tipo" value="' + esc(a ? a.tipo : '') + '" placeholder="Ovali lega, 40 m…"></label>' +
       (a ? '' : '<label class="campo"><span>Pezzi iniziali</span><input type="number" id="s-qta" min="0" value="0"></label>') +
@@ -329,7 +340,7 @@
       function () {
         var payload = {
           id: a ? a.id : '',
-          categoria: $('#s-cat').value,
+          categoria: $('#s-cat').value === '__nuova__' ? $('#s-cat-nuova').value.trim() : $('#s-cat').value,
           articolo: $('#s-art').value,
           tipo: $('#s-tipo').value,
           soglia_minima: $('#s-soglia').value,
@@ -341,6 +352,12 @@
         scrivi('articolo_salva', payload, a ? 'Scheda aggiornata.' : 'Articolo creato.').then(function (ok) { if (ok) chiudiPannello(); });
       },
       a ? 'Salva la scheda' : 'Crea l\'articolo');
+
+    $('#s-cat').addEventListener('change', function () {
+      var nuova = this.value === '__nuova__';
+      $('#s-cat-nuova').style.display = nuova ? '' : 'none';
+      if (nuova) $('#s-cat-nuova').focus();
+    });
 
     if (a) {
       $('#s-foto').addEventListener('change', function () {
