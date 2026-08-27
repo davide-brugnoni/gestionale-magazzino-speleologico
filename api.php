@@ -541,7 +541,9 @@ case 'articolo_elimina':
         foreach ($inv as $a) {
             if ($a['id'] === $id) {
                 $nome = trim($a['articolo'] . ' ' . $a['tipo']);
-                foto_cancella($a['foto'] ?? '');
+                if (!foto_condivisa($inv, $a['foto'] ?? '', $id)) {
+                    foto_cancella($a['foto'] ?? '');
+                }
                 continue;
             }
             $nuovi[] = $a;
@@ -912,7 +914,9 @@ case 'foto_carica':
         $inv = store_read('inventario');
         foreach ($inv as $k => $a) {
             if ($a['id'] === $idArt) {
-                foto_cancella($a['foto'] ?? '');
+                if (!foto_condivisa($inv, $a['foto'] ?? '', $idArt)) {
+                    foto_cancella($a['foto'] ?? '');
+                }
                 $inv[$k]['foto'] = $caricata['nome'];
                 store_write('inventario', $inv);
                 registra_movimento('foto', [
@@ -939,10 +943,50 @@ case 'foto_elimina':
         $inv = store_read('inventario');
         foreach ($inv as $k => $a) {
             if ($a['id'] === $idArt) {
-                foto_cancella($a['foto'] ?? '');
+                if (!foto_condivisa($inv, $a['foto'] ?? '', $idArt)) {
+                    foto_cancella($a['foto'] ?? '');
+                }
                 $inv[$k]['foto'] = '';
                 store_write('inventario', $inv);
                 return ['ok' => true];
+            }
+        }
+        return ['ok' => false, 'errore' => 'Articolo non trovato.'];
+    });
+
+    risposta($esito, $esito['ok'] ? 200 : 400);
+
+case 'foto_assegna':
+    solo_admin();
+    verifica_csrf($in);
+    $idArt    = (string)($in['id'] ?? '');
+    $nomeFoto = basename((string)($in['foto'] ?? ''));
+
+    $esito = store_transazione(function () use ($idArt, $nomeFoto) {
+        $inv = store_read('inventario');
+        // nessun id di articolo e' mai una stringa vuota: questa chiamata
+        // controlla solo che la foto sia davvero in uso da qualche scheda,
+        // cosi' non si puo' assegnare un nome file a caso.
+        if ($nomeFoto === '' || !foto_condivisa($inv, $nomeFoto, '')) {
+            return ['ok' => false, 'errore' => 'Questa foto non esiste piu\'. Ricarica la pagina.'];
+        }
+        foreach ($inv as $k => $a) {
+            if ($a['id'] === $idArt) {
+                if ($a['foto'] === $nomeFoto) {
+                    return ['ok' => true, 'foto' => $nomeFoto];
+                }
+                if (!foto_condivisa($inv, $a['foto'] ?? '', $idArt)) {
+                    foto_cancella($a['foto'] ?? '');
+                }
+                $inv[$k]['foto'] = $nomeFoto;
+                store_write('inventario', $inv);
+                registra_movimento('foto', [
+                    'id_articolo' => $idArt,
+                    'nome'        => trim($a['articolo'] . ' ' . $a['tipo']),
+                    'qta'         => 0,
+                    'nota'        => 'Foto scelta tra quelle gia\' presenti',
+                ]);
+                return ['ok' => true, 'foto' => $nomeFoto];
             }
         }
         return ['ok' => false, 'errore' => 'Articolo non trovato.'];

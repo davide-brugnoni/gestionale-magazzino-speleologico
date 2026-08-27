@@ -60,5 +60,6 @@ $token = csrf();
       Per prendere o riportare attrezzatura non serve entrare: <a href="index.php">vai all'area soci</a>.
     </p>
   </div></div>
+<script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>
 </html>

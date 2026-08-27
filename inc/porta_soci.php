@@ -55,5 +55,6 @@ $token = csrf();
       Gestisci il magazzino? <a href="login.php">Entra con il tuo account</a>.
     </p>
   </div></div>
+<script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>
 </html>

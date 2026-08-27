@@ -146,6 +146,9 @@ a { color: var(--ink); }
 .riquadro > .corpo { padding: 18px; }
 
 .griglia { display: grid; gap: 16px; }
+/* senza questo, una tabella che scorre dentro una colonna della griglia
+   allarga la colonna (e con lei tutta la pagina) invece di scorrere lei */
+.griglia > * { min-width: 0; }
 .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .g3 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 
@@ -284,6 +287,17 @@ img.mini { cursor: zoom-in; }
 .foto-scheda .grande.mini-vuota { font-size: 30px; }
 .foto-scheda input[type=file] { font-size: 13px; padding: 7px; }
 
+.scegli-foto-griglia {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+  max-height: 220px; overflow-y: auto; padding: 2px;
+}
+.scegli-foto-item {
+  width: 52px; height: 52px; flex: none; padding: 0; line-height: 0;
+  border: 1px solid var(--linea); border-radius: 3px; background: none; cursor: pointer;
+}
+.scegli-foto-item:hover, .scegli-foto-item:focus-visible { border-color: var(--ink); }
+.scegli-foto-item img { width: 100%; height: 100%; display: block; border-radius: 2px; object-fit: cover; }
+
 /* ---------------- etichette ---------------- */
 
 .tag {
@@ -311,12 +325,23 @@ input[type=text], input[type=password], input[type=number], input[type=date], in
 input:focus, select:focus, textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(13,20,24,.08); }
 textarea { min-height: 68px; resize: vertical; }
 
+.campo-pass { position: relative; }
+.campo-pass input { padding-right: 38px; }
+.campo-pass-bottone {
+  position: absolute; top: 0; bottom: 0; right: 0; width: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0; margin: 0;
+  color: var(--grigio); cursor: pointer;
+}
+.campo-pass-bottone:hover { color: var(--ink); }
+.campo-pass-bottone:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: var(--raggio); }
+
 .bottone {
   font-family: var(--cond); font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
   padding: 9px 16px; border-radius: var(--raggio); border: 1px solid var(--ink);
   background: var(--ink); color: #fff; cursor: pointer; text-decoration: none;
   display: inline-flex; align-items: center; gap: 7px;
-  white-space: nowrap; flex: none; width: max-content;
+  white-space: nowrap; flex: none; width: max-content; min-width: max-content;
 }
 .bottone:hover { background: var(--ink-2); }
 .bottone:disabled { opacity: .4; cursor: not-allowed; }

@@ -371,7 +371,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <input type="hidden" name="azione" value="gruppo">
 
       <label class="campo"><span>Nome del gruppo speleo *</span>
-        <input type="text" name="nome_gruppo" value="<?= h($bozza['nome_gruppo'] ?? '') ?>" placeholder="Buio Verticale" required autofocus></label>
+        <input type="text" name="nome_gruppo" value="<?= h($bozza['nome_gruppo'] ?? '') ?>" placeholder="Nome Gruppo" required autofocus></label>
 
       <label class="campo"><span>Dicitura sopra il nome</span>
         <input type="text" name="sottotitolo" value="<?= h($bozza['sottotitolo'] ?? 'Gestionale magazzino') ?>"></label>
@@ -439,6 +439,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       </div>
     </form>
 
+    <script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
     <script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
     <script>
       // il bottone si blocca solo adesso: senza JavaScript il modulo resta usabile

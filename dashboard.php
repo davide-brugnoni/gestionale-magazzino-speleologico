@@ -266,8 +266,6 @@ if ($nomeSuper === '') {
             <input type="text" name="codice_soci" autocomplete="off" placeholder="lascia vuoto per non cambiarlo"></label>
           <label class="riga-spunta"><input type="checkbox" name="apri_area" value="1"> apri l'area soci a chiunque abbia il link</label>
           <p class="meta" style="text-transform:none;letter-spacing:0">Cambiando il codice, i dispositivi ricordati devono reinserirlo.</p>
-
-          <button class="bottone luce" type="button" id="btn-salva-impostazioni" style="margin-top:16px">Salva le impostazioni</button>
       </div></div>
 
       <div class="riquadro"><div class="corpo">
@@ -305,6 +303,10 @@ if ($nomeSuper === '') {
           Rimetti i colori di serie</button>
       </div></div>
     </div>
+    <p class="meta" style="text-transform:none;letter-spacing:0;margin:16px 0 10px">
+      Il bottone qui sotto salva tutta la pagina: sia il gruppo che l'aspetto.
+    </p>
+    <button class="bottone luce" type="button" id="btn-salva-impostazioni">Salva le impostazioni</button>
     </form>
   </section>
 
@@ -386,6 +388,7 @@ if ($nomeSuper === '') {
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 <script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 <script src="assets/dashboard.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>
