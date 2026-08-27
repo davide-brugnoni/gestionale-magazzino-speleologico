@@ -146,6 +146,9 @@ a { color: var(--ink); }
 .riquadro > .corpo { padding: 18px; }
 
 .griglia { display: grid; gap: 16px; }
+/* senza questo, una tabella che scorre dentro una colonna della griglia
+   allarga la colonna (e con lei tutta la pagina) invece di scorrere lei */
+.griglia > * { min-width: 0; }
 .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
 .g3 { grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 
@@ -338,7 +341,7 @@ textarea { min-height: 68px; resize: vertical; }
   padding: 9px 16px; border-radius: var(--raggio); border: 1px solid var(--ink);
   background: var(--ink); color: #fff; cursor: pointer; text-decoration: none;
   display: inline-flex; align-items: center; gap: 7px;
-  white-space: nowrap; flex: none; width: max-content;
+  white-space: nowrap; flex: none; width: max-content; min-width: max-content;
 }
 .bottone:hover { background: var(--ink-2); }
 .bottone:disabled { opacity: .4; cursor: not-allowed; }
