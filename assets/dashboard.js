@@ -11,7 +11,7 @@
 
   // Titolo della scheda del browser: cambia insieme alla scheda mostrata.
   function vaiA(bottone) {
-    document.title = bottone.textContent.trim() + ' — ' + TITOLO;
+    document.title = bottone.textContent.trim() + ' - ' + TITOLO;
   }
 
   function esc(s) {
