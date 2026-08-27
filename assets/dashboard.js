@@ -745,6 +745,7 @@
         btn.disabled = false;
         if (!d.ok) { toast(d.errore || 'Non salvato.', 'male'); return; }
         toast('Impostazioni salvate. Ricarico la pagina…', 'ok');
+        sessionStorage.setItem('db-sezione-dopo-salvataggio', 'impostazioni');
         setTimeout(function () { location.reload(); }, 900);
       })
       .catch(function () { btn.disabled = false; toast('Server non raggiungibile.', 'male'); });
@@ -1059,6 +1060,20 @@
           }).join('')
         + '</ul>';
     }).catch(function () {});
+  }
+
+  // Dopo aver salvato le impostazioni la pagina si ricarica intera: senza
+  // questo, il ricaricamento riparte sempre dalla Panoramica invece di
+  // restare su Impostazioni.
+  var sezioneDopoSalvataggio = sessionStorage.getItem('db-sezione-dopo-salvataggio');
+  if (sezioneDopoSalvataggio) {
+    sessionStorage.removeItem('db-sezione-dopo-salvataggio');
+    var tabDopoSalvataggio = $('.tab[data-vai="' + sezioneDopoSalvataggio + '"]');
+    if (tabDopoSalvataggio) {
+      $$('.tab').forEach(function (b) { b.classList.toggle('att', b === tabDopoSalvataggio); });
+      $$('.sezione').forEach(function (s) { s.classList.toggle('att', s.id === 'sez-' + sezioneDopoSalvataggio); });
+      vaiA(tabDopoSalvataggio);
+    }
   }
 
   if (SUPER) { agganciaAggiornamenti(); }
