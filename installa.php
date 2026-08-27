@@ -231,11 +231,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$creato['ok']) {
                     $errore = $creato['errore'];
                 } else {
-                    // di chi e' il compito di tenere aggiornato l'applicativo:
-                    // si parte da chi installa, poi si puo' passare la mano
+                    // chi installa tiene le chiavi di casa: accessi,
+                    // impostazioni e aggiornamenti. Poi, dalla scheda
+                    // Accessi, si puo' passare la mano a qualcun altro.
                     $utenti = store_read('utenti');
                     if (!empty($utenti[0]['id'])) {
-                        salva_impostazioni(['responsabile_aggiornamenti' => $utenti[0]['id']]);
+                        salva_impostazioni(['superadmin_id' => $utenti[0]['id']]);
                     }
                 }
 
@@ -391,13 +392,18 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 
   <?php elseif ($passo === 3): ?>
     <h2>Chi entra e come</h2>
-    <p class="guida">Due livelli: chi gestisce il magazzino ha un account personale, tutti gli altri usano un unico codice di gruppo.</p>
+    <p class="guida">Tre livelli: tu che stai installando tieni le chiavi di casa, chi gestisce il magazzino ha un account personale, tutti gli altri usano un unico codice di gruppo.</p>
 
     <form method="post">
       <input type="hidden" name="csrf" value="<?= h($token) ?>">
       <input type="hidden" name="azione" value="accessi">
 
-      <h3 class="sotto-titolo">Amministratore</h3>
+      <h3 class="sotto-titolo">Superadmin</h3>
+      <p class="guida">Questo primo account tiene le chiavi di casa: e' l'unico
+        che potra' aggiungere e revocare gli altri amministratori, reimpostare
+        le loro password, cambiare le impostazioni del gruppo e il codice dei
+        soci, e curare gli aggiornamenti del programma. Se un domani il compito
+        passa a qualcun altro, il ruolo si consegna dalla scheda Accessi.</p>
       <label class="campo"><span>Nome e cognome *</span>
         <input type="text" name="admin_nome" value="<?= h($bozza['admin']['nome'] ?? '') ?>" required autofocus></label>
       <div class="due">
@@ -409,7 +415,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <label class="campo"><span>Ripeti la password *</span>
         <input type="password" name="admin_pass2" id="admin_pass2" autocomplete="new-password" minlength="8" required></label>
       <ul class="regole-pass" id="admin_pass_esito"></ul>
-      <p class="guida">Gli altri amministratori si aggiungono dopo, dalla dashboard.</p>
+      <p class="guida">Gli altri amministratori li aggiungi tu dopo, dalla dashboard: si occupano del magazzino, non degli accessi.</p>
 
       <h3 class="sotto-titolo">Tutti gli altri soci</h3>
       <label class="campo"><span>Codice del gruppo</span>
@@ -581,7 +587,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <tr><th>Gruppo</th><td><?= h($bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Intestazione</th><td><?= h($bozza['sottotitolo'] . ' ' . $bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Logo</th><td><?= !empty($bozza['logo']) ? 'caricato' : 'nessuno, resta il pallino di serie' ?></td></tr>
-      <tr><th>Amministratore</th><td><?= h($bozza['admin']['nome']) ?> (utente <?= h($bozza['admin']['user']) ?>)</td></tr>
+      <tr><th>Superadmin</th><td><?= h($bozza['admin']['nome']) ?> (utente <?= h($bozza['admin']['user']) ?>)</td></tr>
       <tr><th>Area soci</th><td><?= ($bozza['codice_soci'] ?? '') === '' ? 'aperta a chi ha il link' : 'protetta da codice, ricordato ' . (int)$bozza['codice_giorni'] . ' giorni' ?></td></tr>
       <tr><th>Prelievo in ritardo</th><td>dopo <?= (int)$bozza['giorni_ritardo'] ?> giorni</td></tr>
       <tr><th>Inventario</th><td><?php
@@ -601,12 +607,12 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
 
   <?php else: ?>
     <h2>Fatto</h2>
-    <div class="avviso ok">Il gestionale e' installato e sei gia' entrato come amministratore.</div>
+    <div class="avviso ok">Il gestionale e' installato e sei gia' entrato come Superadmin.</div>
 
     <?php $perm = sistema_permessi(); ?>
     <table class="controlli">
       <tr><td class="esito"><span class="palla si">&check;</span></td><td>Impostazioni salvate</td></tr>
-      <tr><td class="esito"><span class="palla si">&check;</span></td><td>Amministratore creato</td></tr>
+      <tr><td class="esito"><span class="palla si">&check;</span></td><td>Superadmin creato: gli accessi, le impostazioni e gli aggiornamenti sono tuoi</td></tr>
       <tr><td class="esito"><span class="palla si">&check;</span></td><td>Inventario preparato</td></tr>
       <?php foreach ($perm as $cartella => $ok): ?>
         <tr><td class="esito"><span class="palla <?= $ok ? 'si' : 'no' ?>"><?= $ok ? '&check;' : '!' ?></span></td>

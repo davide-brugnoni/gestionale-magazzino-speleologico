@@ -4,6 +4,13 @@
 
   var CSRF   = document.body.getAttribute('data-csrf');
   var TITOLO = document.body.getAttribute('data-titolo') || '';
+
+  // Chi non e' Superadmin non ha Impostazioni, Aggiornamenti e la
+  // tabella degli accessi: quelle parti di pagina non sono state
+  // proprio scritte. Tutto cio' che le tocca sta dietro a questa
+  // bandiera, altrimenti $() torna null e la dashboard muore intera.
+  // A dire di no per davvero e' comunque il server, non questa riga.
+  var SUPER  = document.body.getAttribute('data-super') === '1';
   var D = { inventario: [], aperti: [], storico: [], movimenti: [], utenti: [], kpi: {}, giorni: 14 };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
@@ -124,12 +131,12 @@
       D.aperti     = d.aperti;
       D.storico    = d.storico;
       D.movimenti  = d.movimenti;
-      D.utenti     = d.utenti;
+      D.utenti     = d.utenti || [];
       D.kpi        = d.kpi;
       D.giorni     = d.giorni_ritardo;
       FOTO         = d.foto || {};
       D.impostazioni = d.impostazioni || {};
-      D.responsabile = d.responsabile || {};
+      D.superadmin   = d.superadmin || '';
       D.versione     = d.versione || '';
       riempiCategorie();
       disegnaProfilo();
@@ -140,8 +147,7 @@
       disegnaFuori();
       disegnaStorico();
       disegnaMovimenti();
-      disegnaUtenti();
-      disegnaImpostazioni();
+      if (SUPER) { disegnaUtenti(); disegnaImpostazioni(); }
       $('#pie-aggiornato').textContent = 'Aggiornato ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     });
   }
@@ -575,9 +581,73 @@
 
   function disegnaUtenti() {
     $('#tab-utenti tbody').innerHTML = D.utenti.map(function (u) {
+      var eSuper = u.id === D.superadmin;
+      // il Superadmin non si revoca: prima passa il ruolo, poi semmai esce
+      var comandi = eSuper
+        ? '<span class="meta">Superadmin</span>'
+        : '<button class="bottone chiaro mini" data-reset-utente="' + esc(u.id) + '">Reimposta password</button> ' +
+          '<button class="bottone chiaro mini" data-elimina-utente="' + esc(u.id) + '">Revoca</button>';
       return '<tr><td class="nome-art">' + esc(u.nome) + '</td><td class="meta">' + esc(u.user) + '</td>' +
-        '<td style="text-align:right"><button class="bottone chiaro mini" data-elimina-utente="' + esc(u.id) + '">Revoca</button></td></tr>';
+        '<td style="text-align:right;white-space:nowrap">' + comandi + '</td></tr>';
     }).join('');
+
+    // gli altri amministratori a cui si puo' passare il ruolo
+    var sel = $('#sa-chi');
+    if (!sel) return;
+    var altri = D.utenti.filter(function (u) { return u.id !== D.superadmin; });
+    var scelto = sel.value;
+    sel.innerHTML = altri.length
+      ? altri.map(function (u) {
+          return '<option value="' + esc(u.id) + '">' + esc(u.nome) + ' (' + esc(u.user) + ')</option>';
+        }).join('')
+      : '<option value="">Non c\'e\' nessun altro amministratore</option>';
+    if (scelto) { sel.value = scelto; }
+    $('#btn-passa-ruolo').disabled = !altri.length;
+  }
+
+  function pannelloReset(id) {
+    var u = D.utenti.filter(function (x) { return x.id === id; })[0];
+    if (!u) return;
+    apriPannello('Reimposta la password di ' + u.nome,
+      '<p class="guida" style="margin-top:0">Scegli una password provvisoria e comunicagliela a voce. ' +
+      'Al primo accesso dovra\' sostituirla con una sua: cosi\' non resti a conoscenza della password di nessuno.</p>' +
+      '<label class="campo"><span>Password provvisoria</span>' +
+      '<input type="password" id="rp-pass" autocomplete="new-password"></label>' +
+      '<label class="campo"><span>Ripeti la password</span>' +
+      '<input type="password" id="rp-pass2" autocomplete="new-password"></label>' +
+      '<ul class="regole-pass" id="rp-esito"></ul>',
+      function () {
+        if (!controllo.valida()) { toast('La password non rispetta ancora le regole.', 'male'); return; }
+        chiudiPannello();
+        scrivi('utente_reset_password', { id: id, nuova: $('#rp-pass').value },
+               'Password reimpostata. Comunicagliela a voce.');
+      },
+      'Reimposta');
+
+    var controllo = window.ControlloPassword.collega({
+      pass:     $('#rp-pass'),
+      conferma: $('#rp-pass2'),
+      esito:    $('#rp-esito'),
+      bottone:  $('#velo-ok')
+    });
+  }
+
+  function passaRuolo() {
+    var id  = $('#sa-chi').value;
+    var chi = D.utenti.filter(function (u) { return u.id === id; })[0];
+    if (!id || !chi) { toast('Scegli a chi passare il ruolo.', 'male'); return; }
+    if (!$('#sa-pass').value) { toast('Scrivi la tua password per confermare.', 'male'); return; }
+    if (!confirm('Passi il ruolo di Superadmin a ' + chi.nome + '?\n\n' +
+                 'Da subito sara\' lui a gestire accessi, impostazioni e aggiornamenti.\n' +
+                 'Tu resti un amministratore come gli altri.')) return;
+
+    // niente scrivi(): le sezioni della pagina le decide il server al
+    // momento in cui la scrive, quindi qui serve un giro completo
+    api('superadmin_trasferisci', { id: id, password: $('#sa-pass').value }).then(function (d) {
+      $('#sa-pass').value = '';
+      if (!d.ok) { toast(d.errore || 'Operazione non riuscita.', 'male'); return; }
+      location.reload();
+    });
   }
 
   // ---------------------------------------------------------- impostazioni
@@ -599,7 +669,6 @@
       : 'Adesso l\'area soci è aperta a chiunque abbia il link.';
 
     disegnaColori();
-    disegnaResponsabile();
     anteprimaTestata();
   }
 
@@ -647,18 +716,6 @@
     fd.append('csrf', CSRF);
     fd.append('colori_di_serie', '1');
     inviaImpostazioni(fd, $('#btn-colori-serie'));
-  }
-
-  // ------------------------------------------------- responsabile
-
-  function disegnaResponsabile() {
-    var sel = $('#i-responsabile');
-    if (!sel) return;
-    var scelto = (D.responsabile || {}).id || '';
-    sel.innerHTML = D.utenti.map(function (u) {
-      return '<option value="' + esc(u.id) + '"' + (u.id === scelto ? ' selected' : '') + '>'
-           + esc(u.nome) + '</option>';
-    }).join('');
   }
 
   function anteprimaTestata() {
@@ -787,7 +844,7 @@
       return;
     }
 
-    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-prestito],[data-elimina-utente],[data-articolo]');
+    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-prestito],[data-elimina-utente],[data-reset-utente],[data-articolo]');
     if (!t) return;
 
     if (t.hasAttribute('data-vai')) {
@@ -820,6 +877,10 @@
       scrivi('utente_elimina', { id: t.getAttribute('data-elimina-utente') }, 'Accesso revocato.');
       return;
     }
+    if (t.hasAttribute('data-reset-utente')) {
+      pannelloReset(t.getAttribute('data-reset-utente'));
+      return;
+    }
     if (t.hasAttribute('data-articolo')) {
       var tabInv = $('.tab[data-vai="inventario"]');
       $$('.tab').forEach(function (b) { b.classList.toggle('att', b === tabInv); });
@@ -839,28 +900,33 @@
 
   $('#btn-nuovo').addEventListener('click', function () { pannelloScheda(null); });
   $('#btn-importa').addEventListener('click', pannelloImporta);
-  $('#btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
-  ['#i-nome', '#i-sotto'].forEach(function (s) { $(s).addEventListener('input', anteprimaTestata); });
 
-  var controlloPass = window.ControlloPassword.collega({
-    pass:     $('#u-pass'),
-    conferma: $('#u-pass2'),
-    esito:    $('#u-pass-esito'),
-    bottone:  $('#btn-nuovo-utente')
-  });
+  if (SUPER) {
+    $('#btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
+    ['#i-nome', '#i-sotto'].forEach(function (s) { $(s).addEventListener('input', anteprimaTestata); });
 
-  $('#btn-nuovo-utente').addEventListener('click', function () {
-    if (!controlloPass.valida()) { toast('La password non rispetta ancora le regole.', 'male'); return; }
-    scrivi('utente_nuovo', {
-      nome: $('#u-nome').value, user: $('#u-user').value, password: $('#u-pass').value
-    }, 'Amministratore aggiunto.').then(function (ok) {
-      if (ok) {
-        $('#u-nome').value = ''; $('#u-user').value = '';
-        $('#u-pass').value = ''; $('#u-pass2').value = '';
-        controlloPass.aggiorna();
-      }
+    var controlloPass = window.ControlloPassword.collega({
+      pass:     $('#u-pass'),
+      conferma: $('#u-pass2'),
+      esito:    $('#u-pass-esito'),
+      bottone:  $('#btn-nuovo-utente')
     });
-  });
+
+    $('#btn-nuovo-utente').addEventListener('click', function () {
+      if (!controlloPass.valida()) { toast('La password non rispetta ancora le regole.', 'male'); return; }
+      scrivi('utente_nuovo', {
+        nome: $('#u-nome').value, user: $('#u-user').value, password: $('#u-pass').value
+      }, 'Amministratore aggiunto.').then(function (ok) {
+        if (ok) {
+          $('#u-nome').value = ''; $('#u-user').value = '';
+          $('#u-pass').value = ''; $('#u-pass2').value = '';
+          controlloPass.aggiorna();
+        }
+      });
+    });
+
+    $('#btn-passa-ruolo').addEventListener('click', passaRuolo);
+  }
 
   var controlloMiaPass = window.ControlloPassword.collega({
     pass:     $('#mp-nuova'),
@@ -905,10 +971,6 @@
     $('#i-raggio').addEventListener('input', anteprimaColori);
     $('#btn-colori-serie').addEventListener('click', coloriDiSerie);
 
-    $('#btn-salva-responsabile').addEventListener('click', function () {
-      scrivi('responsabile_salva', { id: $('#i-responsabile').value }, 'Salvato.');
-    });
-
     $('#btn-agg-controlla').addEventListener('click', function () {
       controllaAggiornamenti(true);
     });
@@ -947,11 +1009,10 @@
       esito.textContent = '';
       $('#badge-agg').hidden = false;
 
-      var chi = (d.responsabile || {}).nome || '';
+      // questa scheda la vede solo il Superadmin: chi legge e' gia'
+      // quello che deve muoversi, non c'e' nessun altro da nominare
       var testa = '<p class="guida" style="margin-bottom:10px"><strong>È uscita la versione '
-                + esc(d.versione_remota) + '.</strong>'
-                + (d.sono_io ? ' Te ne occupi tu.' : (chi ? ' Se ne occupa ' + esc(chi) + '.' : ''))
-                + '</p>';
+                + esc(d.versione_remota) + '.</strong> Te ne occupi tu.</p>';
 
       if (d.php_insufficiente) {
         testa += '<p class="guida" style="color:var(--rosso)"><strong>Attenzione:</strong> questa versione '
@@ -1000,7 +1061,7 @@
     }).catch(function () {});
   }
 
-  agganciaAggiornamenti();
+  if (SUPER) { agganciaAggiornamenti(); }
 
   carica();
   setInterval(carica, 120000);

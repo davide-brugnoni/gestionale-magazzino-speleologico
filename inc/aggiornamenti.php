@@ -274,32 +274,11 @@ function agg_controlla(bool $forza = false): array
 }
 
 // --------------------------- chi se ne occupa --------------------
-
-/**
- * L'amministratore incaricato degli aggiornamenti.
- * Non e' un permesso: e' un nome da scrivere accanto all'avviso,
- * cosi' gli altri sanno a chi chiedere. Se non e' stato scelto
- * nessuno, o se quell'account non c'e' piu', vale il primo creato.
- */
-function responsabile_aggiornamenti(): array
-{
-    $utenti = store_read('utenti');
-    if (!$utenti) {
-        return ['id' => '', 'nome' => ''];
-    }
-    $scelto = (string)impostazione('responsabile_aggiornamenti', '');
-    foreach ($utenti as $u) {
-        if ($u['id'] === $scelto) {
-            return ['id' => $u['id'], 'nome' => $u['nome']];
-        }
-    }
-    return ['id' => $utenti[0]['id'], 'nome' => $utenti[0]['nome']];   // gli account sono in ordine di creazione
-}
-
-function sono_responsabile(): bool
-{
-    return e_admin() && responsabile_aggiornamenti()['id'] === ($_SESSION['utente']['id'] ?? '');
-}
+//
+// Non c'e' piu' un responsabile da scegliere: degli aggiornamenti si
+// occupa il Superadmin, ed e' l'unico che vede questa scheda. Il nome
+// da scrivere accanto all'avviso non serve piu' a nessuno, perche'
+// chi legge l'avviso e' gia' quello che deve agire.
 
 // --------------------------- i file toccati a mano ---------------
 
