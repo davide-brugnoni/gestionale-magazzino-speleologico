@@ -67,6 +67,28 @@ function utente_crea(string $user, string $password, string $nome): array
     });
 }
 
+function utente_cambia_password(string $id, string $attuale, string $nuova): array
+{
+    $regola = password_valida($nuova);
+    if (!$regola['ok']) {
+        return ['ok' => false, 'errore' => $regola['errore']];
+    }
+    return store_transazione(function () use ($id, $attuale, $nuova) {
+        $utenti = store_read('utenti');
+        foreach ($utenti as $indice => $u) {
+            if ($u['id'] === $id) {
+                if (!password_verify($attuale, $u['hash'])) {
+                    return ['ok' => false, 'errore' => 'La password attuale non e\' corretta.'];
+                }
+                $utenti[$indice]['hash'] = password_hash($nuova, PASSWORD_DEFAULT);
+                store_write('utenti', $utenti);
+                return ['ok' => true];
+            }
+        }
+        return ['ok' => false, 'errore' => 'Amministratore non trovato.'];
+    });
+}
+
 function utente_elimina(string $id): array
 {
     return store_transazione(function () use ($id) {

@@ -13,6 +13,7 @@
   --grigio:     #6C7C82;
   --lampada:    #0696AF;
   --lampada-sf: #E2F2F6;
+  --lampada-testo: #FFFFFF;
   --verde:      #0E7C6B;
   --verde-sf:   #E0F0ED;
   --rosso:      #B23A2E;
@@ -321,7 +322,7 @@ textarea { min-height: 68px; resize: vertical; }
 .bottone:disabled { opacity: .4; cursor: not-allowed; }
 .bottone.chiaro { background: var(--carta); color: var(--ink); border-color: var(--linea); }
 .bottone.chiaro:hover { border-color: var(--ink); background: var(--carta); }
-.bottone.luce { background: var(--lampada); border-color: var(--lampada); color: var(--ink); }
+.bottone.luce { background: var(--lampada); border-color: var(--lampada); color: var(--lampada-testo); }
 .bottone.luce:hover { background: #05819A; border-color: #05819A; }
 .bottone.pericolo { background: var(--rosso); border-color: var(--rosso); }
 .bottone.mini { font-size: 12px; padding: 5px 10px; }

@@ -366,6 +366,7 @@ case 'stato':
             'codice_giorni'  => CODICE_GIORNI,
             'area_protetta'  => serve_codice_soci(),
             'colore_luce'       => (string)impostazione('colore_luce', ''),
+            'colore_luce_testo' => (string)impostazione('colore_luce_testo', ''),
             'colore_inchiostro' => (string)impostazione('colore_inchiostro', ''),
             'colore_fondo'      => (string)impostazione('colore_fondo', ''),
             'raggio'            => (string)impostazione('raggio', ''),
@@ -674,6 +675,15 @@ case 'utente_elimina':
     }
     risposta(utente_elimina((string)($in['id'] ?? '')));
 
+case 'utente_mia_password':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(utente_cambia_password(
+        (string)($_SESSION['utente']['id'] ?? ''),
+        (string)($in['attuale'] ?? ''),
+        (string)($in['nuova'] ?? '')
+    ));
+
 // ---- impostazioni del gruppo -------------------------------------
 
 case 'impostazioni_salva':
@@ -698,11 +708,12 @@ case 'impostazioni_salva':
     // si accetta solo la forma #rrggbb: qui h() non basterebbe.
     if (!empty($_POST['colori_di_serie'])) {
         $nuove['colore_luce']       = '';
+        $nuove['colore_luce_testo'] = '';
         $nuove['colore_inchiostro'] = '';
         $nuove['colore_fondo']      = '';
         $nuove['raggio']            = '';
     } else {
-        foreach (['colore_luce', 'colore_inchiostro', 'colore_fondo'] as $chiave) {
+        foreach (['colore_luce', 'colore_luce_testo', 'colore_inchiostro', 'colore_fondo'] as $chiave) {
             if (!isset($_POST[$chiave])) {
                 continue;
             }

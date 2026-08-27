@@ -2,11 +2,17 @@
 (function () {
   'use strict';
 
-  var CSRF = document.body.getAttribute('data-csrf');
+  var CSRF   = document.body.getAttribute('data-csrf');
+  var TITOLO = document.body.getAttribute('data-titolo') || '';
   var D = { inventario: [], aperti: [], storico: [], movimenti: [], utenti: [], kpi: {}, giorni: 14 };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  // Titolo della scheda del browser: cambia insieme alla scheda mostrata.
+  function vaiA(bottone) {
+    document.title = bottone.textContent.trim() + ' - ' + TITOLO;
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -294,6 +300,9 @@
     var a = id ? art(id) : null;
     var cats = {};
     D.inventario.forEach(function (x) { cats[x.categoria] = 1; });
+    var catOrdinate = Object.keys(cats).sort();
+    var catAttuale = a ? a.categoria : '';
+    var catNuova = catAttuale === '' || catOrdinate.indexOf(catAttuale) === -1;
 
     var bloccoFoto = a
       ? '<div class="foto-scheda">' +
@@ -312,8 +321,16 @@
 
     apriPannello(a ? 'Scheda articolo' : 'Nuovo articolo',
       bloccoFoto +
-      '<label class="campo"><span>Categoria</span><input type="text" id="s-cat" list="lista-cat" value="' + esc(a ? a.categoria : '') + '">' +
-      '<datalist id="lista-cat">' + Object.keys(cats).map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></label>' +
+      '<label class="campo"><span>Categoria</span>' +
+        '<select id="s-cat">' +
+          '<option value="__nuova__"' + (catNuova ? ' selected' : '') + '>+ Nuova categoria…</option>' +
+          catOrdinate.map(function (c) {
+            return '<option value="' + esc(c) + '"' + (!catNuova && c === catAttuale ? ' selected' : '') + '>' + esc(c) + '</option>';
+          }).join('') +
+        '</select>' +
+        '<input type="text" id="s-cat-nuova" placeholder="Nome della nuova categoria" value="' + (catNuova ? esc(catAttuale) : '') + '"' +
+          ' style="margin-top:8px' + (catNuova ? '' : ';display:none') + '">' +
+      '</label>' +
       '<label class="campo"><span>Articolo</span><input type="text" id="s-art" value="' + esc(a ? a.articolo : '') + '" placeholder="Moschettoni, Corde 10mm…"></label>' +
       '<label class="campo"><span>Tipo o misura</span><input type="text" id="s-tipo" value="' + esc(a ? a.tipo : '') + '" placeholder="Ovali lega, 40 m…"></label>' +
       (a ? '' : '<label class="campo"><span>Pezzi iniziali</span><input type="number" id="s-qta" min="0" value="0"></label>') +
@@ -329,7 +346,7 @@
       function () {
         var payload = {
           id: a ? a.id : '',
-          categoria: $('#s-cat').value,
+          categoria: $('#s-cat').value === '__nuova__' ? $('#s-cat-nuova').value.trim() : $('#s-cat').value,
           articolo: $('#s-art').value,
           tipo: $('#s-tipo').value,
           soglia_minima: $('#s-soglia').value,
@@ -341,6 +358,12 @@
         scrivi('articolo_salva', payload, a ? 'Scheda aggiornata.' : 'Articolo creato.').then(function (ok) { if (ok) chiudiPannello(); });
       },
       a ? 'Salva la scheda' : 'Crea l\'articolo');
+
+    $('#s-cat').addEventListener('change', function () {
+      var nuova = this.value === '__nuova__';
+      $('#s-cat-nuova').style.display = nuova ? '' : 'none';
+      if (nuova) $('#s-cat-nuova').focus();
+    });
 
     if (a) {
       $('#s-foto').addEventListener('change', function () {
@@ -592,9 +615,10 @@
 
   function disegnaColori() {
     var i = D.impostazioni || {};
-    $('#i-col-luce').value  = coloreCorrente(i.colore_luce, '--lampada');
-    $('#i-col-fondo').value = coloreCorrente(i.colore_fondo, '--fondo');
-    $('#i-col-ink').value   = coloreCorrente(i.colore_inchiostro, '--ink');
+    $('#i-col-luce').value       = coloreCorrente(i.colore_luce, '--lampada');
+    $('#i-col-luce-testo').value = coloreCorrente(i.colore_luce_testo, '--lampada-testo');
+    $('#i-col-fondo').value      = coloreCorrente(i.colore_fondo, '--fondo');
+    $('#i-col-ink').value        = coloreCorrente(i.colore_inchiostro, '--ink');
 
     var raggio = i.raggio;
     if (raggio === '' || raggio == null) {
@@ -611,6 +635,7 @@
     if (!box) return;
     box.style.setProperty('--ink', $('#i-col-ink').value);
     box.style.setProperty('--lampada', $('#i-col-luce').value);
+    box.style.setProperty('--lampada-testo', $('#i-col-luce-testo').value);
     box.style.setProperty('--fondo', $('#i-col-fondo').value);
     var r = parseInt($('#i-raggio').value, 10);
     box.style.setProperty('--raggio', (isNaN(r) ? 4 : r) + 'px');
@@ -769,6 +794,7 @@
       var vai = t.getAttribute('data-vai');
       $$('.tab').forEach(function (b) { b.classList.toggle('att', b === t); });
       $$('.sezione').forEach(function (s) { s.classList.toggle('att', s.id === 'sez-' + vai); });
+      vaiA(t);
       return;
     }
     if (t.hasAttribute('data-chiudi'))          { chiudiPannello(); return; }
@@ -795,8 +821,10 @@
       return;
     }
     if (t.hasAttribute('data-articolo')) {
-      $$('.tab').forEach(function (b) { b.classList.toggle('att', b.getAttribute('data-vai') === 'inventario'); });
+      var tabInv = $('.tab[data-vai="inventario"]');
+      $$('.tab').forEach(function (b) { b.classList.toggle('att', b === tabInv); });
       $$('.sezione').forEach(function (s) { s.classList.toggle('att', s.id === 'sez-inventario'); });
+      vaiA(tabInv);
       $('#inv-cerca').value = '';
       $('#inv-cat').value = '';
       disegnaInventario();
@@ -834,6 +862,26 @@
     });
   });
 
+  var controlloMiaPass = window.ControlloPassword.collega({
+    pass:     $('#mp-nuova'),
+    conferma: $('#mp-nuova2'),
+    esito:    $('#mp-esito'),
+    bottone:  $('#btn-mia-password')
+  });
+
+  $('#btn-mia-password').addEventListener('click', function () {
+    if (!$('#mp-attuale').value) { toast('Scrivi la password attuale.', 'male'); return; }
+    if (!controlloMiaPass.valida()) { toast('La nuova password non rispetta ancora le regole.', 'male'); return; }
+    scrivi('utente_mia_password', {
+      attuale: $('#mp-attuale').value, nuova: $('#mp-nuova').value
+    }, 'Password cambiata.').then(function (ok) {
+      if (ok) {
+        $('#mp-attuale').value = ''; $('#mp-nuova').value = ''; $('#mp-nuova2').value = '';
+        controlloMiaPass.aggiorna();
+      }
+    });
+  });
+
   ['#inv-cerca', '#inv-cat', '#inv-ordine'].forEach(function (s) { $(s).addEventListener('input', disegnaInventario); });
   ['#fuori-cerca', '#fuori-solo-ritardo'].forEach(function (s) { $(s).addEventListener('input', disegnaFuori); });
   $('#btn-pulisci-chiusi').addEventListener('click', pannelloPulizia);
@@ -851,6 +899,7 @@
 
   function agganciaAggiornamenti() {
     $('#i-col-luce').addEventListener('input', anteprimaColori);
+    $('#i-col-luce-testo').addEventListener('input', anteprimaColori);
     $('#i-col-fondo').addEventListener('input', anteprimaColori);
     $('#i-col-ink').addEventListener('input', anteprimaColori);
     $('#i-raggio').addEventListener('input', anteprimaColori);

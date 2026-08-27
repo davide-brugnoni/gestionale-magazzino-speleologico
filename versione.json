@@ -1,12 +1,11 @@
 {
-  "versione": "0.2.0",
+  "versione": "0.2.1",
   "data": "2026-08-27",
   "php_minimo": "7.4",
   "novita": [
-    "Avviso in dashboard quando esce una versione nuova",
-    "Colori del gruppo modificabili dalle impostazioni, senza toccare il codice",
-    "I dati non viaggiano piu' dentro il pacchetto: aggiornare non li puo' cancellare",
-    "Personalizzazioni in inc/config-locale.php e assets/stile-locale.css, mai sovrascritte",
-    "Assistente all'aggiornamento: backup dei dati e elenco dei file modificati a mano"
+    "Colore della scritta sui pulsanti colorati personalizzabile, di serie bianco",
+    "Ogni amministratore puo' cambiare la propria password dalla sezione Accessi",
+    "La categoria dell'articolo si sceglie da un vero menu a tendina, con la voce per crearne una nuova",
+    "Il titolo della scheda del browser cambia insieme alla sezione aperta in dashboard"
   ]
 }

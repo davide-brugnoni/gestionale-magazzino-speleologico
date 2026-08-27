@@ -13,14 +13,14 @@ $token = csrf();
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gestione — <?= h(titolo_app()) ?></title>
+<title>Gestione - <?= h(titolo_app()) ?></title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
 <?= aspetto_html() ?>
 </head>
-<body data-csrf="<?= h($token) ?>">
+<body data-csrf="<?= h($token) ?>" data-titolo="<?= h(titolo_app()) ?>">
 
 <header class="testata">
   <div class="testata-in">
@@ -190,6 +190,15 @@ $token = csrf();
       </div></div>
     </div>
 
+    <div class="titolo-sez" style="margin-top:22px">La tua password</div>
+    <div class="riquadro"><div class="corpo">
+      <label class="campo"><span>Password attuale</span><input type="password" id="mp-attuale" autocomplete="current-password"></label>
+      <label class="campo"><span>Nuova password</span><input type="password" id="mp-nuova" autocomplete="new-password"></label>
+      <label class="campo"><span>Ripeti la nuova password</span><input type="password" id="mp-nuova2" autocomplete="new-password"></label>
+      <ul class="regole-pass" id="mp-esito"></ul>
+      <button class="bottone" id="btn-mia-password">Cambia password</button>
+    </div></div>
+
     <div class="titolo-sez" style="margin-top:22px">Chi tiene aggiornato il programma</div>
     <div class="riquadro"><div class="corpo">
       <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
@@ -257,15 +266,17 @@ $token = csrf();
         <div class="due">
           <label class="campo"><span>Colore principale</span>
             <input type="color" name="colore_luce" id="i-col-luce"></label>
-          <label class="campo"><span>Sfondo della pagina</span>
-            <input type="color" name="colore_fondo" id="i-col-fondo"></label>
+          <label class="campo"><span>Scritta dei pulsanti colorati</span>
+            <input type="color" name="colore_luce_testo" id="i-col-luce-testo"></label>
         </div>
         <div class="due">
+          <label class="campo"><span>Sfondo della pagina</span>
+            <input type="color" name="colore_fondo" id="i-col-fondo"></label>
           <label class="campo"><span>Testo e testata</span>
             <input type="color" name="colore_inchiostro" id="i-col-ink"></label>
-          <label class="campo"><span>Angoli stondati (px)</span>
-            <input type="number" name="raggio" id="i-raggio" min="0" max="24" placeholder="4"></label>
         </div>
+        <label class="campo"><span>Angoli stondati (px)</span>
+          <input type="number" name="raggio" id="i-raggio" min="0" max="24" placeholder="4"></label>
         <button class="bottone chiaro" type="button" id="btn-colori-serie" style="margin-top:4px">
           Rimetti i colori di serie</button>
       </div></div>
