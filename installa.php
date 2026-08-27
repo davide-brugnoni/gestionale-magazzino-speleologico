@@ -371,7 +371,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <input type="hidden" name="azione" value="gruppo">
 
       <label class="campo"><span>Nome del gruppo speleo *</span>
-        <input type="text" name="nome_gruppo" value="<?= h($bozza['nome_gruppo'] ?? '') ?>" placeholder="Buio Verticale" required autofocus></label>
+        <input type="text" name="nome_gruppo" value="<?= h($bozza['nome_gruppo'] ?? '') ?>" placeholder="Nome Gruppo" required autofocus></label>
 
       <label class="campo"><span>Dicitura sopra il nome</span>
         <input type="text" name="sottotitolo" value="<?= h($bozza['sottotitolo'] ?? 'Gestionale magazzino') ?>"></label>
