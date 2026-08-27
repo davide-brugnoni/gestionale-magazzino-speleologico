@@ -17,7 +17,8 @@ $token = csrf();
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=4">
+<link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
+<?= aspetto_html() ?>
 </head>
 <body data-csrf="<?= h($token) ?>">
 
@@ -38,6 +39,7 @@ $token = csrf();
       <button class="tab" data-vai="movimenti">Movimenti</button>
       <button class="tab" data-vai="accessi">Accessi</button>
       <button class="tab" data-vai="impostazioni">Impostazioni</button>
+      <button class="tab" data-vai="aggiornamenti">Aggiornamenti<span class="pallino" id="badge-agg" hidden></span></button>
       <a href="index.php">Area soci</a>
       <span class="chi"><?= h($_SESSION['utente']['nome']) ?></span>
       <a href="logout.php">Esci</a>
@@ -187,6 +189,17 @@ $token = csrf();
         <button class="bottone" id="btn-nuovo-utente">Aggiungi amministratore</button>
       </div></div>
     </div>
+
+    <div class="titolo-sez" style="margin-top:22px">Chi tiene aggiornato il programma</div>
+    <div class="riquadro"><div class="corpo">
+      <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
+        L'avviso di nuova versione lo vedono tutti. Questo e' il nome che compare
+        accanto all'avviso, cosi' gli altri sanno a chi chiedere.
+      </p>
+      <label class="campo"><span>Se ne occupa</span>
+        <select id="i-responsabile"></select></label>
+      <button class="bottone chiaro" id="btn-salva-responsabile">Salva</button>
+    </div></div>
   </section>
 
   <!-- ============ IMPOSTAZIONI ============ -->
@@ -235,8 +248,85 @@ $token = csrf();
         <p class="meta" style="margin-top:16px;text-transform:none;letter-spacing:0">
           Il nome compare in cima a ogni pagina e nel titolo della scheda del browser.
         </p>
+
+        <div class="titolo-sez" style="margin-top:22px">Aspetto</div>
+        <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
+          I colori si salvano insieme agli altri dati del gruppo: restano al loro posto
+          anche quando aggiorni il programma.
+        </p>
+        <div class="due">
+          <label class="campo"><span>Colore principale</span>
+            <input type="color" name="colore_luce" id="i-col-luce"></label>
+          <label class="campo"><span>Sfondo della pagina</span>
+            <input type="color" name="colore_fondo" id="i-col-fondo"></label>
+        </div>
+        <div class="due">
+          <label class="campo"><span>Testo e testata</span>
+            <input type="color" name="colore_inchiostro" id="i-col-ink"></label>
+          <label class="campo"><span>Angoli stondati (px)</span>
+            <input type="number" name="raggio" id="i-raggio" min="0" max="24" placeholder="4"></label>
+        </div>
+        <button class="bottone chiaro" type="button" id="btn-colori-serie" style="margin-top:4px">
+          Rimetti i colori di serie</button>
       </div></div>
     </div>
+  </section>
+
+  <!-- ============ AGGIORNAMENTI ============ -->
+  <section id="sez-aggiornamenti" class="sezione">
+    <div class="titolo-sez">Versione installata</div>
+    <div class="riquadro"><div class="corpo">
+      <p style="margin-top:0">
+        Qui c'e' la versione <strong id="agg-versione"><?= h(APP_VERSIONE) ?></strong>.
+        <span id="agg-esito" class="meta" style="text-transform:none;letter-spacing:0"></span>
+      </p>
+      <div id="agg-novita"></div>
+      <button class="bottone chiaro" id="btn-agg-controlla">Controlla adesso</button>
+    </div></div>
+
+    <div class="titolo-sez" style="margin-top:22px">Prima di aggiornare</div>
+    <div class="griglia g2" style="align-items:start">
+      <div class="riquadro"><div class="corpo">
+        <div class="meta" style="margin-bottom:8px">1 — Metti al sicuro i dati</div>
+        <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
+          Uno zip con inventario, prelievi, movimenti, accessi e impostazioni.
+          Le foto non ci sono: stanno in <code>foto/</code> e l'aggiornamento non le tocca.
+        </p>
+        <a class="bottone luce" id="btn-backup" href="api.php?azione=backup_scarica&amp;csrf=<?= h($token) ?>">
+          Scarica i dati</a>
+      </div></div>
+
+      <div class="riquadro"><div class="corpo">
+        <div class="meta" style="margin-bottom:8px">2 — Cosa hai modificato a mano</div>
+        <div id="agg-file"></div>
+      </div></div>
+    </div>
+
+    <div class="titolo-sez" style="margin-top:22px">Come si aggiorna</div>
+    <div class="riquadro"><div class="corpo">
+      <ol class="guida-passi">
+        <li>Scarica lo zip della versione nuova da GitHub.
+            <span id="agg-link-zip"></span></li>
+        <li>Aprilo e carica il contenuto via FTP sopra il sito,
+            <strong>tranne le cartelle <code>data/</code> e <code>foto/</code></strong>:
+            li' dentro c'e' il tuo magazzino.</li>
+        <li><strong>Non caricare <code>installa.php</code></strong>. Si e' cancellato da
+            solo a installazione finita: rimetterlo online aprirebbe la procedura
+            guidata a chiunque conosca l'indirizzo.</li>
+        <li>Non sovrascrivere <code>inc/config-locale.php</code> e
+            <code>assets/stile-locale.css</code>, se ci sono: sono tuoi. E nemmeno il
+            <code>.htaccess</code> nella cartella principale, se ci hai messo mano:
+            sono le regole del tuo server, e una sbagliata manda in errore tutto il sito.</li>
+        <li>Aspetta un minuto, poi apri il sito. Molti server tengono in memoria il
+            programma per qualche secondo: appena finito il caricamento potresti
+            vedere ancora la versione vecchia, o un misto delle due. Passa da se'.</li>
+        <li>Se il formato dei dati e' cambiato, viene adattato da solo al primo
+            caricamento di pagina: non c'e' niente da fare a mano.</li>
+        <li>Torna qui e ricarica: il numero di versione qui sopra deve essere cambiato.
+            Se dopo qualche minuto e' ancora quello vecchio, i file non sono arrivati
+            dove dovevano.</li>
+      </ol>
+    </div></div>
   </section>
 
   <div class="pie">
@@ -259,7 +349,7 @@ $token = csrf();
 
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script src="assets/password.js?v=1"></script>
-<script src="assets/dashboard.js?v=3"></script>
+<script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
+<script src="assets/dashboard.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>
 </html>

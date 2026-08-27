@@ -1,0 +1,29 @@
+# ---------------------------------------------------------------
+# Cosa non fa parte del pacchetto.
+#
+# La regola e' una sola: i DATI del magazzino e le TUE
+# personalizzazioni non viaggiano insieme al programma. Cosi'
+# aggiornare non li puo' cancellare.
+# ---------------------------------------------------------------
+
+# I dati del magazzino. I .htaccess restano dentro: su molti hosting
+# sono loro a far esistere le cartelle quando si carica via FTP.
+/data/*
+!/data/.htaccess
+!/data/prestiti/
+/data/prestiti/*
+!/data/prestiti/.htaccess
+
+# Le foto degli articoli e il logo del gruppo
+/foto/*
+!/foto/.htaccess
+
+# Le tue personalizzazioni
+/inc/config-locale.php
+/assets/stile-locale.css
+
+# Roba di passaggio
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db

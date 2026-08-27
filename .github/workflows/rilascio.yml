@@ -1,0 +1,130 @@
+# ---------------------------------------------------------------
+# Pubblica una versione.
+#
+# Come si usa:
+#   1. alza "versione" e scrivi le "novita" in versione.json
+#   2. git commit
+#   3. git tag v0.3.0 && git push origin v0.3.0
+#
+# Da qui in poi fa tutto questo file: controlla che il tag e
+# versione.json dicano la stessa cosa, verifica la sintassi PHP,
+# costruisce il pacchetto con dentro manifest.json e crea la Release.
+# ---------------------------------------------------------------
+name: Rilascio
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  pubblica:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # PHP 7.4 e' la versione minima dichiarata: la sintassi va
+      # controllata con quella, non con l'ultima uscita.
+      - name: Prepara PHP 7.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '7.4'
+
+      - name: Il tag e versione.json dicono la stessa cosa?
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          FILE=$(php -r 'echo json_decode(file_get_contents("versione.json"), true)["versione"];')
+          echo "tag: $TAG — versione.json: $FILE"
+          if [ "$TAG" != "$FILE" ]; then
+            echo "::error::Il tag dice $TAG ma versione.json dice $FILE."
+            echo "::error::Sistema versione.json prima di taggare: un disallineamento"
+            echo "::error::manderebbe l'avviso in tilt su tutte le installazioni."
+            exit 1
+          fi
+
+      - name: La sintassi PHP e' a posto?
+        run: find . -name '*.php' -not -path './.git/*' -print0 | xargs -0 -n1 php -l
+
+      # La mappa degli hash serve all'installazione per dire, prima di
+      # aggiornare, quali file sono stati modificati a mano. Due hash
+      # per file: uno dei byte, uno con i fine riga normalizzati, cosi'
+      # un FTP in modalita' testo non fa scattare falsi allarmi.
+      - name: Costruisci manifest.json
+        run: |
+          php -r '
+          $radice = getcwd();
+          $salta  = ["/.git/", "/.github/", "/data/", "/foto/"];
+          $file   = [];
+          $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($radice, FilesystemIterator::SKIP_DOTS));
+          foreach ($it as $f) {
+              if (!$f->isFile()) { continue; }
+              $rel = str_replace("\\", "/", substr($f->getPathname(), strlen($radice) + 1));
+              foreach ($salta as $s) {
+                  if (strpos("/" . $rel, $s) === 0) { continue 2; }
+              }
+              if ($rel === "manifest.json") { continue; }
+              $c = file_get_contents($f->getPathname());
+              $file[$rel] = [
+                  "sha"  => hash("sha256", $c),
+                  "norm" => hash("sha256", str_replace(["\r\n", "\r"], "\n", $c)),
+              ];
+          }
+          ksort($file);
+          file_put_contents("manifest.json", json_encode(
+              ["versione" => json_decode(file_get_contents("versione.json"), true)["versione"], "file" => $file],
+              JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+          ) . "\n");
+          echo count($file), " file nel manifest\n";
+          '
+
+      # Il pacchetto NON contiene data/ e foto/: sono il magazzino di
+      # chi lo installa, non roba nostra. E non contiene nemmeno i
+      # file .htaccess di quelle cartelle... anzi si', quelli servono
+      # a farle esistere quando si carica via FTP.
+      - name: Costruisci il pacchetto
+        run: |
+          NOME="gestionale-magazzino-${GITHUB_REF_NAME}"
+          mkdir -p "/tmp/$NOME"
+          rsync -a --exclude '.git' --exclude '.github' \
+                   --exclude 'data/' --exclude 'foto/' \
+                   ./ "/tmp/$NOME/"
+          # le cartelle dei dati viaggiano vuote, con il solo .htaccess:
+          # su molti hosting sono loro a farle esistere quando si carica
+          # via FTP, ma dentro non ci deve essere niente di nostro
+          mkdir -p "/tmp/$NOME/data/prestiti" "/tmp/$NOME/foto"
+          cp data/.htaccess "/tmp/$NOME/data/.htaccess"
+          cp data/prestiti/.htaccess "/tmp/$NOME/data/prestiti/.htaccess"
+          cp foto/.htaccess "/tmp/$NOME/foto/.htaccess"
+          (cd /tmp && zip -qr "$NOME.zip" "$NOME")
+          mv "/tmp/$NOME.zip" .
+          unzip -l "$NOME.zip" | head -40
+
+      - name: Prepara il testo della Release
+        run: |
+          php -r '
+          $v = json_decode(file_get_contents("versione.json"), true);
+          $t = "## Novita\x27\n\n";
+          foreach ($v["novita"] ?? [] as $n) { $t .= "- $n\n"; }
+          $t .= "\n## Come si aggiorna\n\n";
+          $t .= "Scarica lo zip qui sotto e carica il contenuto via FTP sopra il sito,\n";
+          $t .= "**tranne le cartelle `data/` e `foto/`**, e **senza `installa.php`**.\n\n";
+          $t .= "I file `inc/config-locale.php` e `assets/stile-locale.css`, se ci sono,\n";
+          $t .= "non vanno sovrascritti: sono tuoi.\n\n";
+          $t .= "Nella dashboard, sotto **Aggiornamenti**, trovi il backup dei dati da\n";
+          $t .= "scaricare prima e l\x27elenco dei file che hai modificato a mano.\n\n";
+          $t .= "Richiede PHP " . ($v["php_minimo"] ?? "7.4") . " o successivo.\n";
+          file_put_contents("NOTE-RILASCIO.md", $t);
+          '
+          cat NOTE-RILASCIO.md
+
+      - name: Pubblica
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: NOTE-RILASCIO.md
+          files: |
+            gestionale-magazzino-${{ github.ref_name }}.zip

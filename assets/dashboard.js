@@ -123,6 +123,8 @@
       D.giorni     = d.giorni_ritardo;
       FOTO         = d.foto || {};
       D.impostazioni = d.impostazioni || {};
+      D.responsabile = d.responsabile || {};
+      D.versione     = d.versione || '';
       riempiCategorie();
       disegnaProfilo();
       disegnaKpi();
@@ -573,7 +575,65 @@
       ? 'Adesso serve il codice del gruppo per entrare nell\'area soci.'
       : 'Adesso l\'area soci è aperta a chiunque abbia il link.';
 
+    disegnaColori();
+    disegnaResponsabile();
     anteprimaTestata();
+  }
+
+  // ------------------------------------------------- aspetto
+
+  // Il valore che vale adesso per una variabile CSS: quello scelto dal
+  // gruppo, oppure quello di serie letto dal foglio di stile.
+  function coloreCorrente(salvato, variabile) {
+    if (/^#[0-9a-f]{6}$/i.test(salvato || '')) return salvato;
+    var css = getComputedStyle(document.documentElement).getPropertyValue(variabile).trim();
+    return /^#[0-9a-f]{6}$/i.test(css) ? css : '#000000';
+  }
+
+  function disegnaColori() {
+    var i = D.impostazioni || {};
+    $('#i-col-luce').value  = coloreCorrente(i.colore_luce, '--lampada');
+    $('#i-col-fondo').value = coloreCorrente(i.colore_fondo, '--fondo');
+    $('#i-col-ink').value   = coloreCorrente(i.colore_inchiostro, '--ink');
+
+    var raggio = i.raggio;
+    if (raggio === '' || raggio == null) {
+      raggio = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--raggio'), 10);
+      if (isNaN(raggio)) raggio = 4;
+    }
+    $('#i-raggio').value = raggio;
+  }
+
+  // L'anteprima si vede subito, senza salvare: si scrivono le variabili
+  // sul riquadro di anteprima, non su tutta la pagina.
+  function anteprimaColori() {
+    var box = $('#i-anteprima-nome').closest('.testata');
+    if (!box) return;
+    box.style.setProperty('--ink', $('#i-col-ink').value);
+    box.style.setProperty('--lampada', $('#i-col-luce').value);
+    box.style.setProperty('--fondo', $('#i-col-fondo').value);
+    var r = parseInt($('#i-raggio').value, 10);
+    box.style.setProperty('--raggio', (isNaN(r) ? 4 : r) + 'px');
+  }
+
+  function coloriDiSerie() {
+    if (!confirm('Rimetto i colori di serie?')) return;
+    var fd = new FormData($('#form-impostazioni'));
+    fd.append('csrf', CSRF);
+    fd.append('colori_di_serie', '1');
+    inviaImpostazioni(fd, $('#btn-colori-serie'));
+  }
+
+  // ------------------------------------------------- responsabile
+
+  function disegnaResponsabile() {
+    var sel = $('#i-responsabile');
+    if (!sel) return;
+    var scelto = (D.responsabile || {}).id || '';
+    sel.innerHTML = D.utenti.map(function (u) {
+      return '<option value="' + esc(u.id) + '"' + (u.id === scelto ? ' selected' : '') + '>'
+           + esc(u.nome) + '</option>';
+    }).join('');
   }
 
   function anteprimaTestata() {
@@ -588,7 +648,10 @@
   function salvaImpostazioni() {
     var fd = new FormData($('#form-impostazioni'));
     fd.append('csrf', CSRF);
-    var btn = $('#btn-salva-impostazioni');
+    inviaImpostazioni(fd, $('#btn-salva-impostazioni'));
+  }
+
+  function inviaImpostazioni(fd, btn) {
     btn.disabled = true;
 
     fetch('api.php?azione=impostazioni_salva', { method: 'POST', body: fd })
@@ -779,6 +842,116 @@
   ['#st-dal', '#st-al'].forEach(function (s) { $(s).addEventListener('input', aggiornaLinkExport); });
   aggiornaLinkExport();
   $('#mv-cerca').addEventListener('input', disegnaMovimenti);
+
+  // ---------------------------------------------------------- aggiornamenti
+  //
+  // Si guarda soltanto se e' uscita una versione nuova. Il programma
+  // non si scarica e non si installa da solo: i file li carica una
+  // persona via FTP, quando decide lei.
+
+  function agganciaAggiornamenti() {
+    $('#i-col-luce').addEventListener('input', anteprimaColori);
+    $('#i-col-fondo').addEventListener('input', anteprimaColori);
+    $('#i-col-ink').addEventListener('input', anteprimaColori);
+    $('#i-raggio').addEventListener('input', anteprimaColori);
+    $('#btn-colori-serie').addEventListener('click', coloriDiSerie);
+
+    $('#btn-salva-responsabile').addEventListener('click', function () {
+      scrivi('responsabile_salva', { id: $('#i-responsabile').value }, 'Salvato.');
+    });
+
+    $('#btn-agg-controlla').addEventListener('click', function () {
+      controllaAggiornamenti(true);
+    });
+
+    // la pagina si disegna subito; la rete arriva dopo, con calma
+    controllaAggiornamenti(false);
+    statoFile();
+  }
+
+  function controllaAggiornamenti(forza) {
+    var esito = $('#agg-esito');
+    var btn   = $('#btn-agg-controlla');
+    esito.textContent = 'Sto guardando…';
+    btn.disabled = true;
+
+    api('aggiornamenti_controlla' + (forza ? '&forza=1' : '')).then(function (d) {
+      btn.disabled = false;
+      $('#agg-novita').innerHTML = '';
+      $('#agg-link-zip').innerHTML = '';
+      $('#badge-agg').hidden = true;
+
+      if (d.attivo === false) {
+        esito.textContent = 'Il controllo delle nuove versioni è spento.';
+        return;
+      }
+      if (!d.ok) {
+        // non sapere non è la stessa cosa che essere a posto: si dice com'è
+        esito.textContent = d.errore || 'Non sono riuscito a controllare.';
+        return;
+      }
+      if (!d.disponibile) {
+        esito.textContent = 'È l\'ultima versione pubblicata.' + (d.dalla_memoria ? ' (controllato di recente)' : '');
+        return;
+      }
+
+      esito.textContent = '';
+      $('#badge-agg').hidden = false;
+
+      var chi = (d.responsabile || {}).nome || '';
+      var testa = '<p class="guida" style="margin-bottom:10px"><strong>È uscita la versione '
+                + esc(d.versione_remota) + '.</strong>'
+                + (d.sono_io ? ' Te ne occupi tu.' : (chi ? ' Se ne occupa ' + esc(chi) + '.' : ''))
+                + '</p>';
+
+      if (d.php_insufficiente) {
+        testa += '<p class="guida" style="color:var(--rosso)"><strong>Attenzione:</strong> questa versione '
+               + 'richiede PHP ' + esc(d.php_minimo) + ', mentre qui c\'è il ' + esc(d.php) + '. '
+               + 'Prima di aggiornare, chiedi all\'hosting di alzare la versione di PHP.</p>';
+      }
+
+      var voci = (d.novita || []).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('');
+      $('#agg-novita').innerHTML = testa + (voci ? '<ul class="guida-passi">' + voci + '</ul>' : '');
+
+      if (d.zip) {
+        $('#agg-link-zip').innerHTML = '<a class="bottone chiaro" style="margin-left:8px" href="'
+          + esc(d.zip) + '" rel="noopener">Scarica la ' + esc(d.versione_remota) + '</a>';
+      }
+    }).catch(function () {
+      btn.disabled = false;
+      esito.textContent = 'Non sono riuscito a controllare.';
+    });
+  }
+
+  function statoFile() {
+    api('stato_file').then(function (d) {
+      var box = $('#agg-file');
+      if (!d.ok) { box.innerHTML = ''; return; }
+
+      if (!d.noto) {
+        box.innerHTML = '<p class="guida" style="margin:0">Questa versione non porta con sé la mappa '
+          + 'dei file, quindi non posso dirti cosa hai modificato. Dalla prossima potrò.</p>';
+        return;
+      }
+      if (!d.file.length) {
+        box.innerHTML = '<p class="guida" style="margin:0">Nessun file di programma è stato modificato '
+          + 'a mano: puoi sovrascrivere tutto senza pensieri.</p>';
+        return;
+      }
+
+      box.innerHTML = '<p class="guida" style="margin:0 0 10px">Questi file li hai modificati tu. '
+        + 'Sovrascrivendoli perderesti le modifiche:</p><ul class="guida-passi">'
+        + d.file.map(function (f) {
+            return '<li><code>' + esc(f.file) + '</code>'
+                 + (f.come === 'mancante' ? ' — non c\'è più' : '')
+                 + '<br><span class="meta" style="text-transform:none;letter-spacing:0">'
+                 + esc(f.consiglio) + '</span></li>';
+          }).join('')
+        + '</ul>';
+    }).catch(function () {});
+  }
+
+  agganciaAggiornamenti();
 
   carica();
   setInterval(carica, 120000);

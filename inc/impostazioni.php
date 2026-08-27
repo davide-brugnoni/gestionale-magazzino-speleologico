@@ -15,6 +15,17 @@ function impostazioni_predefinite(): array
         'giorni_ritardo'    => 14,
         'segreto'           => '',      // usato per firmare il cookie dei soci
         'installato_il'     => '',
+
+        // Aspetto: vuoto = vale quello che sta in assets/style.css
+        'colore_luce'       => '',      // --lampada
+        'colore_inchiostro' => '',      // --ink
+        'colore_fondo'      => '',      // --fondo
+        'raggio'            => '',      // --raggio, in pixel
+
+        // Aggiornamenti
+        'schema_versione'          => 0,   // formato dei dati; 0 = mai migrato
+        'avvisa_aggiornamenti'     => true,
+        'responsabile_aggiornamenti' => '', // id dell'amministratore che se ne occupa
     ];
 }
 

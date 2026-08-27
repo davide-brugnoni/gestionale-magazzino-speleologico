@@ -45,6 +45,10 @@ function store_init(): void
             "<FilesMatch \"\\.(php|phtml|phar|cgi|pl)$\">\n  Require all denied\n</FilesMatch>\n" .
             "Options -Indexes\n");
     }
+
+    // I dati sono nel formato di questa versione? Quando lo sono gia'
+    // (cioe' quasi sempre) costa il confronto di due numeri.
+    migrazioni_esegui();
 }
 
 // --------------------------- Foto degli articoli ----------------

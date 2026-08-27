@@ -1,0 +1,12 @@
+{
+  "versione": "0.2.0",
+  "data": "2026-08-27",
+  "php_minimo": "7.4",
+  "novita": [
+    "Avviso in dashboard quando esce una versione nuova",
+    "Colori del gruppo modificabili dalle impostazioni, senza toccare il codice",
+    "I dati non viaggiano piu' dentro il pacchetto: aggiornare non li puo' cancellare",
+    "Personalizzazioni in inc/config-locale.php e assets/stile-locale.css, mai sovrascritte",
+    "Assistente all'aggiornamento: backup dei dati e elenco dei file modificati a mano"
+  ]
+}
