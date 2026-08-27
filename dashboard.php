@@ -386,6 +386,7 @@ if ($nomeSuper === '') {
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 <script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
 <script src="assets/dashboard.js?v=<?= h(APP_VERSIONE) ?>"></script>
 </body>

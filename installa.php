@@ -439,6 +439,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       </div>
     </form>
 
+    <script src="assets/mostra-password.js?v=<?= h(APP_VERSIONE) ?>"></script>
     <script src="assets/password.js?v=<?= h(APP_VERSIONE) ?>"></script>
     <script>
       // il bottone si blocca solo adesso: senza JavaScript il modulo resta usabile

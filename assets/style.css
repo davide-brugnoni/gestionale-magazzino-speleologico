@@ -311,6 +311,17 @@ input[type=text], input[type=password], input[type=number], input[type=date], in
 input:focus, select:focus, textarea:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(13,20,24,.08); }
 textarea { min-height: 68px; resize: vertical; }
 
+.campo-pass { position: relative; }
+.campo-pass input { padding-right: 38px; }
+.campo-pass-bottone {
+  position: absolute; top: 0; bottom: 0; right: 0; width: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; padding: 0; margin: 0;
+  color: var(--grigio); cursor: pointer;
+}
+.campo-pass-bottone:hover { color: var(--ink); }
+.campo-pass-bottone:focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; border-radius: var(--raggio); }
+
 .bottone {
   font-family: var(--cond); font-size: 14px; letter-spacing: .06em; text-transform: uppercase;
   padding: 9px 16px; border-radius: var(--raggio); border: 1px solid var(--ink);
