@@ -2,11 +2,17 @@
 (function () {
   'use strict';
 
-  var CSRF = document.body.getAttribute('data-csrf');
+  var CSRF   = document.body.getAttribute('data-csrf');
+  var TITOLO = document.body.getAttribute('data-titolo') || '';
   var D = { inventario: [], aperti: [], storico: [], movimenti: [], utenti: [], kpi: {}, giorni: 14 };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+
+  // Titolo della scheda del browser: cambia insieme alla scheda mostrata.
+  function vaiA(bottone) {
+    document.title = bottone.textContent.trim() + ' — ' + TITOLO;
+  }
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
@@ -788,6 +794,7 @@
       var vai = t.getAttribute('data-vai');
       $$('.tab').forEach(function (b) { b.classList.toggle('att', b === t); });
       $$('.sezione').forEach(function (s) { s.classList.toggle('att', s.id === 'sez-' + vai); });
+      vaiA(t);
       return;
     }
     if (t.hasAttribute('data-chiudi'))          { chiudiPannello(); return; }
@@ -814,8 +821,10 @@
       return;
     }
     if (t.hasAttribute('data-articolo')) {
-      $$('.tab').forEach(function (b) { b.classList.toggle('att', b.getAttribute('data-vai') === 'inventario'); });
+      var tabInv = $('.tab[data-vai="inventario"]');
+      $$('.tab').forEach(function (b) { b.classList.toggle('att', b === tabInv); });
       $$('.sezione').forEach(function (s) { s.classList.toggle('att', s.id === 'sez-inventario'); });
+      vaiA(tabInv);
       $('#inv-cerca').value = '';
       $('#inv-cat').value = '';
       disegnaInventario();

@@ -20,7 +20,7 @@ $token = csrf();
 <link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
 <?= aspetto_html() ?>
 </head>
-<body data-csrf="<?= h($token) ?>">
+<body data-csrf="<?= h($token) ?>" data-titolo="<?= h(titolo_app()) ?>">
 
 <header class="testata">
   <div class="testata-in">
