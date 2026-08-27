@@ -7,6 +7,11 @@ if (!installato()) {
 }
 richiedi_admin();
 $token = csrf();
+$super     = e_superadmin();     // le sezioni riservate non si nascondono: non si scrivono proprio
+$nomeSuper = $super ? '' : superadmin_nome();
+if ($nomeSuper === '') {
+    $nomeSuper = 'il Superadmin';
+}
 ?>
 <!doctype html>
 <html lang="it">
@@ -20,7 +25,7 @@ $token = csrf();
 <link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
 <?= aspetto_html() ?>
 </head>
-<body data-csrf="<?= h($token) ?>" data-titolo="<?= h(titolo_app()) ?>">
+<body data-csrf="<?= h($token) ?>" data-titolo="<?= h(titolo_app()) ?>" data-super="<?= $super ? '1' : '0' ?>">
 
 <header class="testata">
   <div class="testata-in">
@@ -38,8 +43,10 @@ $token = csrf();
       <button class="tab" data-vai="storico">Storico</button>
       <button class="tab" data-vai="movimenti">Movimenti</button>
       <button class="tab" data-vai="accessi">Accessi</button>
+      <?php if ($super): ?>
       <button class="tab" data-vai="impostazioni">Impostazioni</button>
       <button class="tab" data-vai="aggiornamenti">Aggiornamenti<span class="pallino" id="badge-agg" hidden></span></button>
+      <?php endif; ?>
       <a href="index.php">Area soci</a>
       <span class="chi"><?= h($_SESSION['utente']['nome']) ?></span>
       <a href="logout.php">Esci</a>
@@ -175,6 +182,7 @@ $token = csrf();
 
   <!-- ============ ACCESSI ============ -->
   <section id="sez-accessi" class="sezione">
+    <?php if ($super): ?>
     <div class="titolo-sez">Chi puo' entrare in gestione</div>
     <div class="griglia g2" style="align-items:start">
       <div class="riquadro tabella-scroll">
@@ -189,8 +197,9 @@ $token = csrf();
         <button class="bottone" id="btn-nuovo-utente">Aggiungi amministratore</button>
       </div></div>
     </div>
+    <?php endif; ?>
 
-    <div class="titolo-sez" style="margin-top:22px">La tua password</div>
+    <div class="titolo-sez"<?= $super ? ' style="margin-top:22px"' : '' ?>>La tua password</div>
     <div class="riquadro"><div class="corpo">
       <label class="campo"><span>Password attuale</span><input type="password" id="mp-attuale" autocomplete="current-password"></label>
       <label class="campo"><span>Nuova password</span><input type="password" id="mp-nuova" autocomplete="new-password"></label>
@@ -199,18 +208,34 @@ $token = csrf();
       <button class="bottone" id="btn-mia-password">Cambia password</button>
     </div></div>
 
-    <div class="titolo-sez" style="margin-top:22px">Chi tiene aggiornato il programma</div>
+    <?php if ($super): ?>
+    <div class="titolo-sez" style="margin-top:22px">Passa il ruolo di Superadmin</div>
     <div class="riquadro"><div class="corpo">
       <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
-        L'avviso di nuova versione lo vedono tutti. Questo e' il nome che compare
-        accanto all'avviso, cosi' gli altri sanno a chi chiedere.
+        Il Superadmin e' uno solo: sei tu. Se lasci il gruppo, o se il compito
+        passa a qualcun altro, consegna qui le chiavi di casa. Da quel momento
+        tu resti un amministratore come gli altri, e questa scheda la vedra' lui.
       </p>
-      <label class="campo"><span>Se ne occupa</span>
-        <select id="i-responsabile"></select></label>
-      <button class="bottone chiaro" id="btn-salva-responsabile">Salva</button>
+      <label class="campo"><span>Diventa Superadmin</span>
+        <select id="sa-chi"></select></label>
+      <label class="campo"><span>La tua password, per conferma</span>
+        <input type="password" id="sa-pass" autocomplete="current-password"></label>
+      <button class="bottone" id="btn-passa-ruolo">Passa il ruolo</button>
     </div></div>
+    <?php else: ?>
+    <div class="titolo-sez" style="margin-top:22px">Il resto lo tiene il Superadmin</div>
+    <div class="riquadro"><div class="corpo">
+      <p class="meta" style="text-transform:none;letter-spacing:0;margin:0">
+        Gli accessi alla gestione, le impostazioni del gruppo, il codice
+        dell'area soci e gli aggiornamenti del programma li cura
+        <strong><?= h($nomeSuper) ?></strong>. Se ti serve qualcosa di questo,
+        chiedi a lui.
+      </p>
+    </div></div>
+    <?php endif; ?>
   </section>
 
+  <?php if ($super): ?>
   <!-- ============ IMPOSTAZIONI ============ -->
   <section id="sez-impostazioni" class="sezione">
     <div class="titolo-sez">Il gruppo</div>
@@ -339,6 +364,7 @@ $token = csrf();
       </ol>
     </div></div>
   </section>
+  <?php endif; ?>
 
   <div class="pie">
     <span>Dati su file JSON — nessun database</span>

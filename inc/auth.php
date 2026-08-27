@@ -38,6 +38,65 @@ function utenti_esistono(): bool
     return count(store_read('utenti')) > 0;
 }
 
+// ---------------------------------------------------------------
+// Il Superadmin
+//
+// E' chi ha fatto l'installazione, salvo passaggio di mano. E' uno
+// solo, e il suo id sta in impostazioni.json: non serve un campo su
+// ogni account per dire "no" a tutti tranne uno.
+//
+// Solo lui puo': creare e revocare amministratori, reimpostare le
+// loro password, cambiare le impostazioni del gruppo e il codice
+// dell'area soci, e usare la scheda Aggiornamenti.
+// ---------------------------------------------------------------
+
+/**
+ * L'id del Superadmin.
+ *
+ * Se l'id salvato non corrisponde piu' a nessun account - succede
+ * solo mettendo mano ai file a mano o ripristinando un backup
+ * vecchio - vale il primo creato, che e' anche il piu' probabile
+ * fondatore: nessuno deve poter restare chiuso fuori di casa.
+ * Il ripiego non riscrive l'impostazione (una pagina letta non deve
+ * salvare niente): per rimetterla a posto basta un passaggio di
+ * ruolo dalla scheda Accessi.
+ */
+function superadmin_id(): string
+{
+    $utenti = store_read('utenti');
+    if (!$utenti) {
+        return '';
+    }
+    $scelto = (string)impostazione('superadmin_id', '');
+    foreach ($utenti as $u) {
+        if ($u['id'] === $scelto) {
+            return $scelto;
+        }
+    }
+    return (string)($utenti[0]['id'] ?? '');
+}
+
+/** Il nome del Superadmin, da mostrare agli altri: sanno a chi chiedere. */
+function superadmin_nome(): string
+{
+    $id = superadmin_id();
+    foreach (store_read('utenti') as $u) {
+        if ($u['id'] === $id) {
+            return (string)$u['nome'];
+        }
+    }
+    return '';
+}
+
+function e_superadmin(): bool
+{
+    static $esito = null;
+    if ($esito === null) {
+        $esito = e_admin() && ($_SESSION['utente']['id'] ?? '') === superadmin_id();
+    }
+    return $esito;
+}
+
 function utente_crea(string $user, string $password, string $nome): array
 {
     $user = strtolower(trim($user));
@@ -81,8 +140,36 @@ function utente_cambia_password(string $id, string $attuale, string $nuova): arr
                     return ['ok' => false, 'errore' => 'La password attuale non e\' corretta.'];
                 }
                 $utenti[$indice]['hash'] = password_hash($nuova, PASSWORD_DEFAULT);
+                // scelta da se': l'obbligo di cambiarla e' finito qui
+                $utenti[$indice]['cambio_richiesto'] = false;
                 store_write('utenti', $utenti);
                 return ['ok' => true];
+            }
+        }
+        return ['ok' => false, 'errore' => 'Amministratore non trovato.'];
+    });
+}
+
+/**
+ * Reimposta la password di un amministratore senza chiedere quella
+ * vecchia: la usa il Superadmin quando qualcuno la dimentica.
+ * La provvisoria vale per un accesso solo, poi il diretto interessato
+ * deve sceglierne una sua (vedi deve_cambiare_password()).
+ */
+function utente_imposta_password(string $id, string $nuova): array
+{
+    $regola = password_valida($nuova);
+    if (!$regola['ok']) {
+        return ['ok' => false, 'errore' => $regola['errore']];
+    }
+    return store_transazione(function () use ($id, $nuova) {
+        $utenti = store_read('utenti');
+        foreach ($utenti as $indice => $u) {
+            if ($u['id'] === $id) {
+                $utenti[$indice]['hash']             = password_hash($nuova, PASSWORD_DEFAULT);
+                $utenti[$indice]['cambio_richiesto'] = true;
+                store_write('utenti', $utenti);
+                return ['ok' => true, 'nome' => $u['nome']];
             }
         }
         return ['ok' => false, 'errore' => 'Amministratore non trovato.'];
@@ -95,6 +182,9 @@ function utente_elimina(string $id): array
         $utenti = store_read('utenti');
         if (count($utenti) <= 1) {
             return ['ok' => false, 'errore' => 'Deve restare almeno un amministratore.'];
+        }
+        if ($id !== '' && $id === superadmin_id()) {
+            return ['ok' => false, 'errore' => 'Il Superadmin non si puo\' revocare. Passa prima il ruolo a un altro amministratore.'];
         }
         $nuovi = array_values(array_filter($utenti, fn($u) => $u['id'] !== $id));
         if (count($nuovi) === count($utenti)) {
@@ -170,6 +260,9 @@ function login(string $user, string $password): bool
             session_regenerate_id(true);           // nuovo identificativo di sessione
             $_SESSION['utente'] = ['id' => $u['id'], 'user' => $u['user'], 'nome' => $u['nome']];
             $_SESSION['nata']   = time();
+            // password reimpostata dal Superadmin: vale per questo accesso
+            // e basta, poi se ne sceglie una propria
+            $_SESSION['cambio_password'] = !empty($u['cambio_richiesto']);
             return true;
         }
     }
@@ -254,10 +347,23 @@ function e_admin(): bool
     return isset($_SESSION['utente']);
 }
 
+/**
+ * Sta entrando con una password provvisoria, messa dal Superadmin?
+ * Finche' non se ne sceglie una sua non va da nessuna parte.
+ */
+function deve_cambiare_password(): bool
+{
+    return e_admin() && !empty($_SESSION['cambio_password']);
+}
+
 function richiedi_admin(): void
 {
     if (!e_admin()) {
         header('Location: login.php');
+        exit;
+    }
+    if (deve_cambiare_password()) {
+        header('Location: cambia-password.php');
         exit;
     }
 }

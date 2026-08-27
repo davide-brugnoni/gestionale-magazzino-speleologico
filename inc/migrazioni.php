@@ -41,8 +41,53 @@
 function migrazioni_elenco(): array
 {
     return [
-        // 1 => 'migrazione_0001_esempio',
+        1 => 'migrazione_0001_superadmin',
     ];
+}
+
+/**
+ * Nomina il Superadmin nelle installazioni fatte prima che il ruolo
+ * esistesse.
+ *
+ * Prima di questa versione tutti gli amministratori erano uguali.
+ * L'unica traccia di "chi se ne occupa" era il responsabile degli
+ * aggiornamenti, che pero' era solo un nome accanto all'avviso: se
+ * qualcuno l'aveva scelto lo si prende per buono, altrimenti vale il
+ * primo account creato, cioe' chi ha fatto l'installazione.
+ *
+ * Attenzione: qui dentro si usano solo store_read() e store_write().
+ * salva_impostazioni() aprirebbe una seconda store_transazione() e il
+ * lock si bloccherebbe su se' stesso, e impostazione() leggerebbe la
+ * cache riempita prima del lock, cioe' un dato gia' vecchio.
+ */
+function migrazione_0001_superadmin(): void
+{
+    $salvate = store_read('impostazioni');
+    if (!empty($salvate['superadmin_id'])) {
+        return;                                     // gia' fatta
+    }
+    $utenti = store_read('utenti');
+    if (!$utenti) {
+        return;                                     // niente accessi, niente da nominare
+    }
+
+    $scelto = (string)($salvate['responsabile_aggiornamenti'] ?? '');
+    $nuovo  = '';
+    foreach ($utenti as $u) {
+        if (($u['id'] ?? '') === $scelto && $scelto !== '') {
+            $nuovo = $scelto;
+            break;
+        }
+    }
+    if ($nuovo === '') {
+        $nuovo = (string)($utenti[0]['id'] ?? '');
+    }
+    if ($nuovo === '') {
+        return;
+    }
+
+    $salvate['superadmin_id'] = $nuovo;
+    store_write('impostazioni', $salvate);
 }
 
 /**

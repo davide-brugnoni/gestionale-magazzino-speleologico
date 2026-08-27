@@ -34,6 +34,27 @@ function solo_admin(): void
     if (!e_admin()) {
         errore('Sessione scaduta. Rientra per continuare.', 401);
     }
+    // Password provvisoria ancora da cambiare: non si fa niente finche'
+    // non se ne sceglie una propria. Si risponde 401 apposta, cosi' la
+    // dashboard rimbalza su login.php, che essendo gia' dentro rimanda
+    // a dashboard.php e da li' richiedi_admin() porta al cambio.
+    if (deve_cambiare_password()) {
+        errore('Prima devi cambiare la password.', 401);
+    }
+}
+
+/**
+ * Le operazioni riservate a chi ha le chiavi di casa: gli account
+ * degli amministratori, le impostazioni del gruppo, gli aggiornamenti.
+ * Nascondere i comandi nella pagina e' solo cortesia: e' qui che si
+ * dice di no davvero.
+ */
+function solo_superadmin(): void
+{
+    solo_admin();
+    if (!e_superadmin()) {
+        errore('Questa cosa la puo\' fare solo il Superadmin.', 403);
+    }
 }
 
 function verifica_csrf(array $in): void
@@ -371,11 +392,16 @@ case 'stato':
             'colore_fondo'      => (string)impostazione('colore_fondo', ''),
             'raggio'            => (string)impostazione('raggio', ''),
         ],
-        'utenti'         => array_map(fn($u) => ['id' => $u['id'], 'user' => $u['user'], 'nome' => $u['nome']], store_read('utenti')),
+        // l'elenco degli amministratori lo vede solo chi puo' farci
+        // qualcosa: e' il Superadmin ad avere la tabella
+        'utenti'         => e_superadmin()
+            ? array_map(fn($u) => ['id' => $u['id'], 'user' => $u['user'], 'nome' => $u['nome']], store_read('utenti'))
+            : [],
         'io'             => $_SESSION['utente'],
+        'superadmin'     => superadmin_id(),
+        'sono_superadmin' => e_superadmin(),
         'giorni_ritardo' => GIORNI_RITARDO,
         'versione'       => APP_VERSIONE,
-        'responsabile'   => responsabile_aggiornamenti(),
     ]);
 
 // ---- carico / scarico / rettifica giacenza ----------------------
@@ -663,31 +689,95 @@ case 'prestiti_pulisci':
 // ---- gestione amministratori -------------------------------------
 
 case 'utente_nuovo':
-    solo_admin();
+    solo_superadmin();
     verifica_csrf($in);
     risposta(utente_crea((string)($in['user'] ?? ''), (string)($in['password'] ?? ''), (string)($in['nome'] ?? '')));
 
 case 'utente_elimina':
-    solo_admin();
+    solo_superadmin();
     verifica_csrf($in);
     if (($in['id'] ?? '') === ($_SESSION['utente']['id'] ?? '')) {
         errore('Non puoi eliminare il tuo stesso accesso.');
     }
     risposta(utente_elimina((string)($in['id'] ?? '')));
 
+// Password provvisoria per chi la sua l'ha dimenticata. Chi la riceve
+// e' obbligato a sceglierne una nuova al primo accesso, cosi' il
+// Superadmin non resta a conoscenza della password di nessuno.
+case 'utente_reset_password':
+    solo_superadmin();
+    verifica_csrf($in);
+    $idBersaglio = (string)($in['id'] ?? '');
+    if ($idBersaglio === ($_SESSION['utente']['id'] ?? '')) {
+        errore('Per la tua password usa il riquadro "La tua password".');
+    }
+    $esito = utente_imposta_password($idBersaglio, (string)($in['nuova'] ?? ''));
+    if ($esito['ok']) {
+        // nel registro finisce il fatto, mai la password
+        registra_movimento('impostazioni', [
+            'nome' => '',
+            'qta'  => 0,
+            'nota' => 'Password reimpostata per ' . ($esito['nome'] ?? 'un amministratore'),
+        ]);
+    }
+    risposta(['ok' => $esito['ok'], 'errore' => $esito['errore'] ?? '']);
+
 case 'utente_mia_password':
     solo_admin();
     verifica_csrf($in);
-    risposta(utente_cambia_password(
+    $esito = utente_cambia_password(
         (string)($_SESSION['utente']['id'] ?? ''),
         (string)($in['attuale'] ?? ''),
         (string)($in['nuova'] ?? '')
-    ));
+    );
+    if ($esito['ok']) {
+        unset($_SESSION['cambio_password']);     // se era provvisoria, adesso non lo e' piu'
+    }
+    risposta($esito);
+
+// ---- passaggio del ruolo di Superadmin ---------------------------
+//
+// La via d'uscita quando chi ha installato lascia il gruppo. Si chiede
+// la sua password perche' e' l'operazione che regala le chiavi di casa:
+// una scheda lasciata aperta non deve bastare.
+case 'superadmin_trasferisci':
+    solo_superadmin();
+    verifica_csrf($in);
+    $idNuovo = (string)($in['id'] ?? '');
+    if ($idNuovo === '' || $idNuovo === ($_SESSION['utente']['id'] ?? '')) {
+        errore('Scegli un altro amministratore.');
+    }
+
+    $utenti  = store_read('utenti');
+    $nuovo   = null;
+    $ioStesso = null;
+    foreach ($utenti as $u) {
+        if ($u['id'] === $idNuovo) {
+            $nuovo = $u;
+        }
+        if ($u['id'] === ($_SESSION['utente']['id'] ?? '')) {
+            $ioStesso = $u;
+        }
+    }
+    if (!$nuovo) {
+        errore('Amministratore non trovato.');
+    }
+    if (!$ioStesso || !password_verify((string)($in['password'] ?? ''), $ioStesso['hash'])) {
+        errore('La tua password non e\' corretta.');
+    }
+
+    salva_impostazioni(['superadmin_id' => $idNuovo]);
+    registra_movimento('impostazioni', [
+        'nome' => '',
+        'qta'  => 0,
+        'nota' => 'Ruolo di Superadmin passato a ' . $nuovo['nome'],
+    ]);
+    risposta(['ok' => true, 'nome' => $nuovo['nome']]);
 
 // ---- impostazioni del gruppo -------------------------------------
 
 case 'impostazioni_salva':
-    solo_admin();
+    solo_superadmin();
     if (!csrf_valido($_POST['csrf'] ?? null)) {
         errore('Sessione non valida. Ricarica la pagina.', 419);
     }
@@ -865,11 +955,9 @@ case 'foto_elimina':
 // e' uscita una versione nuova e si aiuta chi deve caricarla a mano.
 
 case 'aggiornamenti_controlla':
-    solo_admin();
+    solo_superadmin();
     $forza = isset($_GET['forza']);
     $esito = agg_controlla($forza);
-    $esito['responsabile']    = responsabile_aggiornamenti();
-    $esito['sono_io']         = sono_responsabile();
     $esito['php']             = PHP_VERSION;
     // una versione che chiede un PHP piu' recente va detta, altrimenti
     // l'installazione resta ferma per sempre senza che si capisca perche'
@@ -879,7 +967,7 @@ case 'aggiornamenti_controlla':
     risposta($esito);
 
 case 'stato_file':
-    solo_admin();
+    solo_superadmin();
     $modificati = agg_file_modificati();
     foreach ($modificati['file'] as $k => $m) {
         $modificati['file'][$k]['consiglio'] = agg_consiglio($m['file']);
@@ -895,8 +983,11 @@ case 'stato_file':
         ],
     ]);
 
+// Lo zip porta con se' utenti.json e impostazioni.json, cioe' gli hash
+// delle password e il segreto che firma il cookie dei soci: se lo
+// scarica solo chi ha gia' le chiavi di casa.
 case 'backup_scarica':
-    solo_admin();
+    solo_superadmin();
     if (!csrf_valido($_GET['csrf'] ?? null)) {
         errore('Sessione non valida. Ricarica la pagina.', 419);
     }
@@ -911,22 +1002,6 @@ case 'backup_scarica':
     readfile($backup['file']);
     @unlink($backup['file']);          // era di passaggio: non resta in giro
     exit;
-
-case 'responsabile_salva':
-    solo_admin();
-    verifica_csrf($in);
-    $idScelto = (string)($in['id'] ?? '');
-    $trovato  = false;
-    foreach (store_read('utenti') as $u) {
-        if ($u['id'] === $idScelto) {
-            $trovato = true;
-        }
-    }
-    if (!$trovato) {
-        errore('Amministratore non trovato.');
-    }
-    salva_impostazioni(['responsabile_aggiornamenti' => $idScelto]);
-    risposta(['ok' => true]);
 
 default:
     errore('Azione sconosciuta.', 404);

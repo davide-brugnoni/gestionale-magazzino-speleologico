@@ -13,7 +13,7 @@ Tutti i dati stanno in file JSON dentro `data/`, le foto in `foto/`.
 
 1. Copia l'intera cartella nello spazio web, per esempio in `/magazzino`.
 2. Apri il sito nel browser: parte da sola la procedura guidata, in cinque passi.
-3. Al termine il gestionale cancella `installa.php` e sei già dentro come amministratore.
+3. Al termine il gestionale cancella `installa.php` e sei già dentro come Superadmin.
 
 Non devi modificare nessun file a mano. Se il tuo hosting non permette a PHP di
 creare le cartelle, prima di iniziare dai i permessi via FTP:
@@ -35,10 +35,10 @@ permessi di `data/` e `foto/` (0775 sulle cartelle, 0664 sui file).
 "Gestionale magazzino <nome>" che compare in cima a ogni pagina. Il logo viene
 ridotto in automatico; senza logo resta il pallino giallo.
 
-**3. Accessi** — l'amministratore (nome, utente, password ripetuta due volte) e
-il codice unico per tutti gli altri soci, che puoi anche non mettere lasciando
-l'area aperta. Qui decidi anche dopo quanti giorni un prelievo va in ritardo e
-per quanto un telefono resta riconosciuto.
+**3. Accessi** — il Superadmin, cioè tu che stai installando (nome, utente,
+password ripetuta due volte), e il codice unico per tutti gli altri soci, che
+puoi anche non mettere lasciando l'area aperta. Qui decidi anche dopo quanti
+giorni un prelievo va in ritardo e per quanto un telefono resta riconosciuto.
 
 **4. Inventario** — importi il tuo foglio, parti da zero, o tieni i 57 articoli
 di esempio già nel pacchetto. Sull'importazione: vedi sotto.
@@ -123,10 +123,28 @@ Lasciandolo vuoto l'area soci resta aperta a chiunque abbia il link.
 |---|---|---|
 | Tutti i soci | `index.php` | Vedere la disponibilità, segnare cosa prendono, registrare il rientro |
 | Nessuno | `data/`, `inc/` | Cartelle chiuse dal web server: si leggono solo via FTP o SSH |
-| Amministratori | `dashboard.php` | Tutto il resto: acquisti, scarti, schede articolo, storico, chiusure |
+| Amministratori | `dashboard.php` | Il magazzino: acquisti, scarti, schede articolo, storico, chiusure, importazioni, foto, e la propria password |
+| Superadmin | `dashboard.php` | Tutto quanto sopra, più: aggiungere e revocare amministratori, reimpostare le loro password, le impostazioni del gruppo, il codice dei soci, il backup e gli aggiornamenti |
 
 L'area soci non ha password: chi prende il materiale scrive nome e cognome.
 La gestione è protetta da nome utente e password (hash bcrypt, sessione PHP).
+
+**Il Superadmin è uno solo**, ed è chi ha fatto l'installazione. Le schede
+Impostazioni e Aggiornamenti agli altri amministratori non vengono nemmeno
+scritte nella pagina, e le richieste corrispondenti l'`api.php` le rifiuta:
+nascondere un pulsante non è una protezione, negare l'operazione sì.
+
+Se il Superadmin lascia il gruppo, passa il ruolo dalla scheda **Accessi**:
+sceglie chi gli succede, conferma con la propria password e da quel momento
+resta un amministratore come gli altri. È l'unica via, ed è voluta: senza,
+un'installazione con il fondatore irreperibile resterebbe bloccata per sempre.
+
+Quando un amministratore dimentica la password, il Superadmin gliene mette una
+provvisoria (**Reimposta password** nella tabella degli accessi) e gliela dice a
+voce. Quella password vale per un accesso solo: al primo ingresso il gestionale
+lo porta su `cambia-password.php` e non lo lascia andare da nessun'altra parte
+finché non ne sceglie una sua. Così il Superadmin non resta mai a conoscenza
+della password di qualcun altro.
 
 ## Come funziona il giro del materiale
 
@@ -174,7 +192,7 @@ ridimensionamento: funziona lo stesso, pesa solo di piu'.
 | `data/movimenti.json` | Acquisti, scarti, rettifiche, perdite |
 | `data/utenti.json` | Amministratori (solo hash della password) |
 | `data/tentativi.json` | Contatore dei tentativi di accesso falliti |
-| `data/impostazioni.json` | Nome del gruppo, logo, codice soci, colori, preferenze |
+| `data/impostazioni.json` | Nome del gruppo, logo, codice soci, colori, preferenze, chi è il Superadmin |
 | `data/aggiornamenti.json` | Esito dell'ultimo controllo delle nuove versioni |
 | `data/.installato` | Segna che l'installazione è finita |
 | `foto/` | Le immagini degli articoli |
@@ -278,10 +296,11 @@ leggibile: c'è già il fallback di sistema.
 
 ## Aggiornare l'applicativo
 
-Quando esce una versione nuova, chi entra in gestione la vede: **Gestione →
+Quando esce una versione nuova, la vede il Superadmin: **Gestione →
 Aggiornamenti** dice che versione c'è installata, se ne è uscita una più recente
 e cosa cambia. Il controllo passa da GitHub una volta ogni dodici ore e si può
-spegnere del tutto.
+spegnere del tutto. La scheda è solo sua, e con lei il pallino che avvisa: è
+inutile far vedere un avviso a chi non può farci niente.
 
 L'aggiornamento **non è automatico, per scelta**. Perché lo fosse, il server web
 dovrebbe poter riscrivere i file `.php` del sito: da quel momento qualunque falla
@@ -293,7 +312,9 @@ Nella stessa scheda trovi le due cose che servono prima di farlo:
 
 1. **Scarica i dati** — uno zip con inventario, prelievi, movimenti, accessi e
    impostazioni. Le foto non ci sono: stanno in `foto/` e l'aggiornamento non le
-   tocca.
+   tocca. Dentro ci sono gli hash delle password e il segreto che firma il
+   cookie dei soci: per questo lo scarica solo il Superadmin, e va custodito
+   come si custodirebbe un mazzo di chiavi.
 2. **Cosa hai modificato a mano** — l'applicativo conosce le impronte dei propri
    file, quindi ti dice esattamente quali hai toccato e dove riportare quelle
    modifiche.
