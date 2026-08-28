@@ -1,12 +1,16 @@
 {
-  "versione": "1.1.0",
-  "data": "2026-08-27",
+  "versione": "1.1.1",
+  "data": "2026-08-28",
   "php_minimo": "7.4",
   "novita": [
     "Nuovo ruolo Superadmin: chi fa l'installazione resta l'unico a gestire accessi, impostazioni e aggiornamenti",
     "Il Superadmin puo' reimpostare la password di un amministratore: quella provvisoria vale per un accesso solo, poi va sostituita",
     "Il ruolo di Superadmin si puo' passare a un altro amministratore dalla scheda Accessi",
     "Le schede Impostazioni e Aggiornamenti, il codice dei soci e il backup dei dati sono riservati al Superadmin",
-    "Il responsabile degli aggiornamenti non si sceglie piu': se ne occupa il Superadmin"
+    "Il responsabile degli aggiornamenti non si sceglie piu': se ne occupa il Superadmin",
+    "Corretto lo scasso dell'interfaccia su mobile: testo che usciva dai pulsanti e pagine che scorrevano di lato",
+    "Per la foto di un articolo si puo' scegliere una gia' caricata su un altro invece di ricaricarla",
+    "Il bottone Salva le impostazioni sta ora sotto entrambe le colonne, e dopo il salvataggio resta aperto il tab Impostazioni",
+    "Bottone per mostrare/nascondere il testo nei campi password"
   ]
 }
