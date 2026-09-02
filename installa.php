@@ -175,6 +175,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $codice = trim($_POST['codice_soci'] ?? '');
             $aperta = !empty($_POST['area_aperta']);
 
+            // SMTP e' facoltativo: si puo' saltare e configurare dopo
+            // dalla dashboard. Si scrive solo quello che e' stato compilato.
+            $smtpHost = trim($_POST['smtp_host'] ?? '');
+            $smtp = [
+                'smtp_host'          => $smtpHost,
+                'smtp_porta'         => max(1, (int)($_POST['smtp_porta'] ?? 587)),
+                'smtp_sicurezza'     => in_array($_POST['smtp_sicurezza'] ?? 'tls', ['tls', 'ssl', 'nessuna'], true) ? $_POST['smtp_sicurezza'] : 'tls',
+                'smtp_utente'        => trim($_POST['smtp_utente'] ?? ''),
+                'smtp_password'      => (string)($_POST['smtp_password'] ?? ''),
+                'smtp_mittente'      => trim($_POST['smtp_mittente'] ?? ''),
+                'smtp_nome_mittente' => trim($_POST['smtp_nome_mittente'] ?? ''),
+            ];
+
             if (mb_strlen($nome) < 3) {
                 $errore = 'Scrivi nome e cognome dell\'amministratore.';
             } elseif (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
@@ -185,12 +198,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errore = 'Le due password dell\'amministratore non coincidono.';
             } elseif ($accessoSoci === 'codice' && !$aperta && strlen($codice) < 4) {
                 $errore = 'Il codice per i soci deve avere almeno 4 caratteri, oppure lascia l\'area aperta.';
+            } elseif ($smtpHost !== '' && !filter_var($smtp['smtp_mittente'], FILTER_VALIDATE_EMAIL)) {
+                $errore = 'Se compili il server SMTP, scrivi anche un indirizzo email valido come mittente.';
             } else {
                 $bozza['admin'] = ['nome' => $nome, 'user' => $user, 'pass' => $pass];
                 $bozza['accesso_soci'] = $accessoSoci;
                 $bozza['codice_soci']  = $accessoSoci === 'account' ? '' : ($aperta ? '' : $codice);
                 $bozza['codice_giorni'] = max(1, (int)($_POST['codice_giorni'] ?? 90));
                 $bozza['giorni_ritardo'] = max(1, (int)($_POST['giorni_ritardo'] ?? 14));
+                $bozza['smtp'] = $smtpHost !== '' ? $smtp : [];
                 $_SESSION['installa'] = $bozza;
                 header('Location: installa.php?passo=4');
                 exit;
@@ -238,7 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errore = 'Sono ripartito da capo: rifai i passaggi.';
             } else {
                 // 1. impostazioni
-                salva_impostazioni([
+                salva_impostazioni(array_merge([
                     'nome_gruppo'    => $bozza['nome_gruppo'],
                     'sottotitolo'    => $bozza['sottotitolo'],
                     'logo'           => $bozza['logo'] ?? '',
@@ -249,7 +265,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'installato_il'  => date('c'),
                     // dati gia' nel formato di questa versione: niente da migrare
                     'schema_versione' => migrazioni_bersaglio(),
-                ]);
+                ], $bozza['smtp'] ?? []));
                 imposta_codice_soci($bozza['codice_soci'] ?? '');
 
                 // 2. amministratore
@@ -466,7 +482,36 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
         <p class="guida">Il codice viene chiesto una volta per telefono. Per revocarlo a tutti basta cambiarlo dalla dashboard.</p>
       </div>
       <div id="ins-blocco-account" hidden>
-        <p class="guida">Ogni socio si registra da se' con email e password: l'account resta in attesa finche' non lo approvi tu dalla dashboard.</p>
+        <p class="guida">Ogni socio si registra da se' con email e password: l'account resta in attesa finche' non lo approvi tu dalla dashboard, e deve anche confermare il suo indirizzo email tramite un link che gli mandiamo.</p>
+
+        <h3 class="sotto-titolo">Invio email (SMTP)</h3>
+        <p class="guida">Serve per mandare l'email di conferma registrazione e i link per reimpostare la password.
+          Facoltativo: puoi saltarlo adesso e configurarlo dopo dalla dashboard, in Impostazioni. Finche' non e' impostato, le email semplicemente non partono.</p>
+        <div class="due">
+          <label class="campo"><span>Server SMTP</span>
+            <input type="text" name="smtp_host" value="<?= h($bozza['smtp']['smtp_host'] ?? '') ?>" placeholder="smtp.esempio.it"></label>
+          <label class="campo"><span>Porta</span>
+            <input type="number" name="smtp_porta" min="1" max="65535" value="<?= (int)($bozza['smtp']['smtp_porta'] ?? 587) ?>"></label>
+        </div>
+        <label class="campo"><span>Sicurezza</span>
+          <select name="smtp_sicurezza">
+            <?php $sic = $bozza['smtp']['smtp_sicurezza'] ?? 'tls'; ?>
+            <option value="tls" <?= $sic === 'tls' ? 'selected' : '' ?>>STARTTLS (di solito porta 587)</option>
+            <option value="ssl" <?= $sic === 'ssl' ? 'selected' : '' ?>>TLS/SSL diretto (di solito porta 465)</option>
+            <option value="nessuna" <?= $sic === 'nessuna' ? 'selected' : '' ?>>Nessuna (sconsigliato)</option>
+          </select></label>
+        <div class="due">
+          <label class="campo"><span>Utente SMTP</span>
+            <input type="text" name="smtp_utente" value="<?= h($bozza['smtp']['smtp_utente'] ?? '') ?>" autocomplete="off"></label>
+          <label class="campo"><span>Password SMTP</span>
+            <input type="password" name="smtp_password" value="<?= h($bozza['smtp']['smtp_password'] ?? '') ?>" autocomplete="new-password"></label>
+        </div>
+        <div class="due">
+          <label class="campo"><span>Email mittente</span>
+            <input type="email" name="smtp_mittente" value="<?= h($bozza['smtp']['smtp_mittente'] ?? '') ?>" placeholder="magazzino@ilgruppo.it"></label>
+          <label class="campo"><span>Nome mittente</span>
+            <input type="text" name="smtp_nome_mittente" value="<?= h($bozza['smtp']['smtp_nome_mittente'] ?? '') ?>" placeholder="<?= h($bozza['nome_gruppo'] ?? 'il tuo gruppo') ?>"></label>
+        </div>
       </div>
       <script>
         (function () {
@@ -655,6 +700,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
             echo ($bozza['codice_soci'] ?? '') === '' ? 'aperta a chi ha il link' : 'protetta da codice, ricordato ' . (int)$bozza['codice_giorni'] . ' giorni';
         }
       ?></td></tr>
+      <tr><th>Invio email</th><td><?= !empty($bozza['smtp']['smtp_host']) ? 'configurato (' . h($bozza['smtp']['smtp_host']) . ')' : 'non configurato, lo fai dopo dalla dashboard' ?></td></tr>
       <tr><th>Prelievo in ritardo</th><td>dopo <?= (int)$bozza['giorni_ritardo'] ?> giorni</td></tr>
       <tr><th>Inventario</th><td><?php
         $sc = $bozza['scelta_inventario'] ?? 'vuoto';

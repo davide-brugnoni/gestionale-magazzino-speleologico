@@ -43,6 +43,7 @@ function migrazioni_elenco(): array
     return [
         1 => 'migrazione_0001_superadmin',
         2 => 'migrazione_0002_accesso_soci',
+        3 => 'migrazione_0003_email_soci',
     ];
 }
 
@@ -107,6 +108,35 @@ function migrazione_0002_accesso_soci(): void
     }
     $salvate['accesso_soci'] = 'codice';
     store_write('impostazioni', $salvate);
+}
+
+/**
+ * Da quando la conferma email e' richiesta per entrare (vedi
+ * account_socio_login()), i soci gia' registrati e approvati prima di
+ * questa versione resterebbero chiusi fuori: non hanno mai avuto modo
+ * di confermare un indirizzo che nessuno gli ha mai chiesto. Sono
+ * gia' passati al vaglio di un amministratore, quindi si segnano come
+ * gia' verificati.
+ *
+ * Usa socio_leggi()/socio_salva() invece di store_read()/store_write():
+ * gli account soci vivono un file a testa (vedi inc/store.php), e
+ * quelle due funzioni fanno solo I/O di file semplice, senza un lock
+ * proprio: sono sicure da chiamare qui dentro, nel lock che tiene gia'
+ * migrazioni_esegui().
+ */
+function migrazione_0003_email_soci(): void
+{
+    foreach (soci_leggi_tutti() as $s) {
+        if (isset($s['email_verificata'])) {
+            continue;                               // gia' fatta
+        }
+        $s['email_verificata']    = true;
+        $s['token_verifica']      = $s['token_verifica'] ?? '';
+        $s['token_verifica_scad'] = $s['token_verifica_scad'] ?? '';
+        $s['token_reset']         = $s['token_reset'] ?? '';
+        $s['token_reset_scad']    = $s['token_reset_scad'] ?? '';
+        socio_salva($s);
+    }
 }
 
 /**

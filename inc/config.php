@@ -67,6 +67,17 @@ function in_https(): bool
         || (($_SERVER['SERVER_PORT'] ?? '') === '443');
 }
 
+/**
+ * Base assoluta del sito (schema, host, cartella), per i link scritti
+ * nelle email: li' un percorso relativo non basta, il link deve
+ * funzionare da un client di posta qualsiasi.
+ */
+function url_base(): string
+{
+    $cartella = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
+    return (in_https() ? 'https://' : 'http://') . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $cartella . '/';
+}
+
 // Sessione
 if (session_status() === PHP_SESSION_NONE) {
     session_name('BVMAG');
@@ -92,6 +103,7 @@ if (!headers_sent()) {
 
 require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/impostazioni.php';
+require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/soci_auth.php';
 require_once __DIR__ . '/migrazioni.php';

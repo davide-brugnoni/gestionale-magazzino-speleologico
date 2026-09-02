@@ -41,7 +41,13 @@ function account_socio_trova_per_email(string $email): ?array
 /**
  * Autoregistrazione di un socio. L'account nasce 'in_attesa': non
  * puo' entrare finche' un amministratore non lo approva dalla
- * dashboard. Non logga nessuno.
+ * dashboard, e finche' non conferma il suo indirizzo email (vedi
+ * account_socio_verifica_email()). Non logga nessuno.
+ *
+ * Se la creazione riesce, il risultato porta anche 'id' e
+ * 'token_verifica' (in chiaro): a chi chiama tocca mandare l'email
+ * col link di conferma, fuori da questa funzione — l'invio e' I/O di
+ * rete e non deve girare dentro store_transazione().
  */
 function account_socio_crea(string $nome, string $email, string $password): array
 {
@@ -61,21 +67,163 @@ function account_socio_crea(string $nome, string $email, string $password): arra
         if (account_socio_trova_per_email($email)) {
             return ['ok' => false, 'errore' => 'Questa email ha gia\' un account. Se lo hai dimenticato, chiedi a chi gestisce il magazzino.'];
         }
+        $token = bin2hex(random_bytes(32));
         $socio = [
-            'id'               => nuovo_id('soc'),
-            'nome'             => $nome,
-            'email'            => $email,
-            'hash'             => password_hash($password, PASSWORD_DEFAULT),
-            'stato'            => 'in_attesa',
-            'creato_il'        => adesso(),
-            'cambio_richiesto' => false,
-            'approvato_il'     => '',
-            'approvato_da'     => '',
+            'id'                  => nuovo_id('soc'),
+            'nome'                => $nome,
+            'email'               => $email,
+            'hash'                => password_hash($password, PASSWORD_DEFAULT),
+            'stato'               => 'in_attesa',
+            'creato_il'           => adesso(),
+            'cambio_richiesto'    => false,
+            'approvato_il'        => '',
+            'approvato_da'        => '',
+            'email_verificata'    => false,
+            'token_verifica'      => hash('sha256', $token),
+            'token_verifica_scad' => date('c', time() + 48 * 3600),
+            'token_reset'         => '',
+            'token_reset_scad'    => '',
         ];
         if (!socio_salva($socio)) {
             return ['ok' => false, 'errore' => 'Non riesco a salvare la registrazione. Controlla i permessi della cartella data/soci.'];
         }
-        return ['ok' => true];
+        return ['ok' => true, 'id' => $socio['id'], 'token_verifica' => $token];
+    });
+}
+
+/**
+ * Conferma l'indirizzo email di un socio, dal link mandato alla
+ * registrazione. Non basta di per se' a far entrare: serve comunque
+ * l'approvazione di un amministratore (vedi account_socio_login()).
+ */
+function account_socio_verifica_email(string $id, string $token): array
+{
+    return store_transazione(function () use ($id, $token) {
+        $s = socio_leggi($id);
+        if ($s === null) {
+            return ['ok' => false, 'errore' => 'Account non trovato.'];
+        }
+        if (!empty($s['email_verificata'])) {
+            return ['ok' => true, 'nome' => $s['nome'], 'gia_fatto' => true];
+        }
+        $hash = (string)($s['token_verifica'] ?? '');
+        $scad = (string)($s['token_verifica_scad'] ?? '');
+        if ($hash === '' || !hash_equals($hash, hash('sha256', $token))) {
+            return ['ok' => false, 'errore' => 'Il link non e\' valido. Se ti sei registrato di nuovo, usa l\'email piu\' recente.'];
+        }
+        if ($scad === '' || strtotime($scad) < time()) {
+            return ['ok' => false, 'errore' => 'Il link e\' scaduto. Chiedi a chi gestisce il magazzino di rimandartelo.'];
+        }
+        $s['email_verificata']    = true;
+        $s['token_verifica']      = '';
+        $s['token_verifica_scad'] = '';
+        if (!socio_salva($s)) {
+            return ['ok' => false, 'errore' => 'Non riesco a salvare la conferma.'];
+        }
+        return ['ok' => true, 'nome' => $s['nome']];
+    });
+}
+
+/**
+ * Richiede il reset della password. Il messaggio verso chi chiama e'
+ * sempre lo stesso, trovato o no: non deve rivelare se un'email ha un
+ * account (stesso principio di account_socio_login()). Solo il
+ * risultato interno ('trovato', 'id', 'nome', 'token') dice se mandare
+ * davvero l'email, e tocca a chi chiama farlo fuori dalla transazione.
+ */
+function account_socio_richiedi_reset(string $email): array
+{
+    $email = strtolower(trim($email));
+    return store_transazione(function () use ($email) {
+        $s = account_socio_trova_per_email($email);
+        // Solo gli account attivi possono farsi mandare un link: uno in
+        // attesa o disabilitato non deve poter entrare comunque.
+        if ($s === null || ($s['stato'] ?? '') !== 'attivo') {
+            return ['ok' => true, 'trovato' => false];
+        }
+        $token = bin2hex(random_bytes(32));
+        $s['token_reset']      = hash('sha256', $token);
+        $s['token_reset_scad'] = date('c', time() + 3600);
+        if (!socio_salva($s)) {
+            return ['ok' => true, 'trovato' => false];
+        }
+        return ['ok' => true, 'trovato' => true, 'id' => $s['id'], 'nome' => $s['nome'], 'email' => $s['email'], 'token' => $token];
+    });
+}
+
+/** Sceglie una nuova password dal link di reset. */
+function account_socio_reset_password(string $id, string $token, string $nuova): array
+{
+    $regola = password_valida($nuova);
+    if (!$regola['ok']) {
+        return ['ok' => false, 'errore' => $regola['errore']];
+    }
+    return store_transazione(function () use ($id, $token, $nuova) {
+        $s = socio_leggi($id);
+        if ($s === null) {
+            return ['ok' => false, 'errore' => 'Account non trovato.'];
+        }
+        $hash = (string)($s['token_reset'] ?? '');
+        $scad = (string)($s['token_reset_scad'] ?? '');
+        if ($hash === '' || !hash_equals($hash, hash('sha256', $token))) {
+            return ['ok' => false, 'errore' => 'Il link non e\' valido. Richiedine uno nuovo.'];
+        }
+        if ($scad === '' || strtotime($scad) < time()) {
+            return ['ok' => false, 'errore' => 'Il link e\' scaduto. Richiedine uno nuovo.'];
+        }
+        $s['hash']             = password_hash($nuova, PASSWORD_DEFAULT);
+        $s['cambio_richiesto'] = false;
+        $s['token_reset']      = '';
+        $s['token_reset_scad'] = '';
+        // chi ha ricevuto e usato il link ha dimostrato di possedere quella casella
+        $s['email_verificata'] = true;
+        $s['token_verifica']      = '';
+        $s['token_verifica_scad'] = '';
+        if (!socio_salva($s)) {
+            return ['ok' => false, 'errore' => 'Non riesco a salvare la nuova password.'];
+        }
+        return ['ok' => true, 'nome' => $s['nome']];
+    });
+}
+
+// ---------------------------------------------------------------
+// Freno alle richieste di reset. Stesso schema di attesa_residua()/
+// segna_tentativo() in inc/auth.php ma separato: qui non si tratta
+// di indovinare una password, ma di non far diventare il modulo un
+// modo per spammare email a indirizzi altrui.
+// ---------------------------------------------------------------
+
+function chiave_tentativi_reset(): string
+{
+    return hash('sha256', 'reset|' . ($_SERVER['REMOTE_ADDR'] ?? 'ignoto'));
+}
+
+/** Secondi di attesa ancora da scontare prima di poter richiedere un altro reset. */
+function reset_attesa_residua(): int
+{
+    $reg = store_read('tentativi');
+    $k   = chiave_tentativi_reset();
+    if (!isset($reg[$k])) {
+        return 0;
+    }
+    return max(0, (int)$reg[$k]['bloccato_fino'] - time());
+}
+
+function reset_segna_richiesta(): void
+{
+    store_transazione(function () {
+        $reg = store_read('tentativi');
+        $k   = chiave_tentativi_reset();
+        // una richiesta ogni 60 secondi dallo stesso indirizzo: basta a
+        // scoraggiare lo spam senza intralciare chi ha sbagliato a scrivere
+        $reg[$k] = ['bloccato_fino' => time() + 60, 'ultimo' => time()];
+
+        foreach ($reg as $id => $v) {
+            if ((int)($v['ultimo'] ?? 0) < time() - 86400 && (int)($v['bloccato_fino'] ?? 0) < time()) {
+                unset($reg[$id]);
+            }
+        }
+        store_write('tentativi', $reg);
     });
 }
 
@@ -192,6 +340,11 @@ function account_socio_cambia_password(string $id, string $attuale, string $nuov
  *
  * Il messaggio d'errore resta generico apposta: non deve rivelare se
  * un'email non esiste, e' ancora in attesa, o e' stata disabilitata.
+ *
+ * Per entrare servono sia l'approvazione dell'amministratore
+ * ('stato' === 'attivo') sia la conferma dell'indirizzo email
+ * ('email_verificata'): due controlli indipendenti, in qualsiasi
+ * ordine si completino.
  */
 function account_socio_login(string $email, string $password): bool
 {
@@ -200,7 +353,7 @@ function account_socio_login(string $email, string $password): bool
     }
     $email = strtolower(trim($email));
     $s     = account_socio_trova_per_email($email);
-    if ($s && ($s['stato'] ?? '') === 'attivo' && password_verify($password, $s['hash'])) {
+    if ($s && ($s['stato'] ?? '') === 'attivo' && !empty($s['email_verificata']) && password_verify($password, $s['hash'])) {
         segna_tentativo(true);
         session_regenerate_id(true);
         $_SESSION['account_socio'] = ['id' => $s['id'], 'nome' => $s['nome'], 'email' => $s['email']];

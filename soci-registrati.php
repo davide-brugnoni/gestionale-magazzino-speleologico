@@ -29,6 +29,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $esito = account_socio_crea($nome, $email, (string)($_POST['password'] ?? ''));
         if ($esito['ok']) {
+            // L'invio email e' I/O di rete: gira qui fuori, non dentro
+            // la transazione che account_socio_crea() ha gia' chiuso.
+            $link  = url_base() . 'soci-verifica.php?id=' . rawurlencode($esito['id']) . '&token=' . rawurlencode($esito['token_verifica']);
+            $corpo = "Ciao " . $nome . ",\n\n"
+                . "grazie per esserti registrato su " . APP_NOME . ".\n"
+                . "Conferma il tuo indirizzo email entro 48 ore aprendo questo link:\n\n"
+                . $link . "\n\n"
+                . "Un amministratore dovra' comunque approvare la registrazione prima che tu possa entrare.\n"
+                . "Se non sei stato tu a registrarti, ignora questa email.\n";
+            email_invia($email, $nome, 'Conferma la tua email - ' . APP_NOME, $corpo);
             $fatto = true;
         } else {
             $errore = $esito['errore'];
@@ -57,7 +67,7 @@ $token = csrf();
     </div>
 
     <?php if ($fatto): ?>
-      <div class="avviso ok">Registrazione ricevuta. Un amministratore deve approvarla prima che tu possa entrare: ti avvisera' lui.</div>
+      <div class="avviso ok">Registrazione ricevuta. Ti abbiamo mandato un'email per confermare l'indirizzo (controlla anche nello spam): un amministratore deve comunque approvare la registrazione prima che tu possa entrare.</div>
       <p style="margin:18px 0 0;font-size:13.5px;color:var(--grigio)">
         <a href="soci-entra.php">Torna alla pagina di accesso</a>.
       </p>

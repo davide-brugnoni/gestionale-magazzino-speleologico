@@ -423,7 +423,17 @@ case 'stato':
             'colore_inchiostro' => (string)impostazione('colore_inchiostro', ''),
             'colore_fondo'      => (string)impostazione('colore_fondo', ''),
             'raggio'            => (string)impostazione('raggio', ''),
-        ],
+        ] + (e_superadmin() ? [
+            // La password SMTP non torna mai indietro: solo se e' stata
+            // impostata, cosi' il form sa se dire "invariata" o meno.
+            'smtp_host'              => (string)impostazione('smtp_host', ''),
+            'smtp_porta'             => (int)impostazione('smtp_porta', 587),
+            'smtp_sicurezza'         => (string)impostazione('smtp_sicurezza', 'tls'),
+            'smtp_utente'            => (string)impostazione('smtp_utente', ''),
+            'smtp_password_impostata' => (string)impostazione('smtp_password', '') !== '',
+            'smtp_mittente'          => (string)impostazione('smtp_mittente', ''),
+            'smtp_nome_mittente'     => (string)impostazione('smtp_nome_mittente', ''),
+        ] : []),
         // l'elenco degli amministratori lo vede solo chi puo' farci
         // qualcosa: e' il Superadmin ad avere la tabella
         'utenti'         => e_superadmin()
@@ -433,6 +443,7 @@ case 'stato':
         'account_soci'   => array_map(fn($s) => [
             'id' => $s['id'], 'nome' => $s['nome'], 'email' => $s['email'],
             'stato' => $s['stato'], 'creato_il' => $s['creato_il'],
+            'email_verificata' => !empty($s['email_verificata']),
         ], soci_leggi_tutti()),
         'io'             => $_SESSION['utente'],
         'superadmin'     => superadmin_id(),
@@ -921,6 +932,25 @@ case 'impostazioni_salva':
         $nuove['logo'] = '';
     }
 
+    // ---- SMTP. La password si cambia solo se e' stata scritta di nuovo:
+    // il form non la rimanda mai indietro, quindi vuota non vuol dire
+    // "toglila", vuol dire "non l'ho toccata".
+    if (isset($_POST['smtp_host'])) {
+        $smtpMittente = trim((string)($_POST['smtp_mittente'] ?? ''));
+        if (trim((string)$_POST['smtp_host']) !== '' && !filter_var($smtpMittente, FILTER_VALIDATE_EMAIL)) {
+            errore('Se compili il server SMTP, scrivi anche un indirizzo email valido come mittente.');
+        }
+        $nuove['smtp_host']          = trim((string)$_POST['smtp_host']);
+        $nuove['smtp_porta']         = max(1, min(65535, (int)($_POST['smtp_porta'] ?? 587)));
+        $nuove['smtp_sicurezza']     = in_array($_POST['smtp_sicurezza'] ?? 'tls', ['tls', 'ssl', 'nessuna'], true) ? $_POST['smtp_sicurezza'] : 'tls';
+        $nuove['smtp_utente']        = trim((string)($_POST['smtp_utente'] ?? ''));
+        $nuove['smtp_mittente']      = $smtpMittente;
+        $nuove['smtp_nome_mittente'] = trim((string)($_POST['smtp_nome_mittente'] ?? ''));
+        if (trim((string)($_POST['smtp_password'] ?? '')) !== '') {
+            $nuove['smtp_password'] = (string)$_POST['smtp_password'];
+        }
+    }
+
     salva_impostazioni($nuove);
 
     // il codice dei soci si cambia solo se e' stato scritto qualcosa
@@ -936,6 +966,43 @@ case 'impostazioni_salva':
 
     registra_movimento('impostazioni', ['nome' => '', 'qta' => 0, 'nota' => 'Impostazioni aggiornate']);
     risposta(['ok' => true]);
+
+case 'impostazioni_email_test':
+    solo_superadmin();
+    if (!csrf_valido($_POST['csrf'] ?? null)) {
+        errore('Sessione non valida. Ricarica la pagina.', 419);
+    }
+
+    // Prova con i valori che stanno nel modulo in questo momento, non
+    // (solo) quelli gia' salvati: cosi' si controlla prima di salvare.
+    // La password, se lasciata vuota, vale quella gia' salvata.
+    $host      = trim((string)($_POST['smtp_host'] ?? ''));
+    $mittente  = trim((string)($_POST['smtp_mittente'] ?? ''));
+    if ($host === '' || !filter_var($mittente, FILTER_VALIDATE_EMAIL)) {
+        errore('Compila almeno il server SMTP e un\'email mittente valida prima di provare.');
+    }
+    $porta     = max(1, min(65535, (int)($_POST['smtp_porta'] ?? 587)));
+    $sicurezza = in_array($_POST['smtp_sicurezza'] ?? '', ['tls', 'ssl', 'nessuna'], true) ? $_POST['smtp_sicurezza'] : 'tls';
+    $utente    = trim((string)($_POST['smtp_utente'] ?? ''));
+    $password  = trim((string)($_POST['smtp_password'] ?? '')) !== '' ? (string)$_POST['smtp_password'] : (string)impostazione('smtp_password', '');
+    $nomeMitt  = trim((string)($_POST['smtp_nome_mittente'] ?? '')) ?: APP_NOME;
+
+    $a = (string)($_SESSION['utente']['user'] ?? '');
+    if (!filter_var($a, FILTER_VALIDATE_EMAIL)) {
+        errore('Il tuo account non ha un\'email valida a cui mandare la prova.');
+    }
+
+    $esito = email_smtp_invia(
+        $host, $porta, $sicurezza, $utente, $password, $mittente, $nomeMitt,
+        $a, (string)($_SESSION['utente']['nome'] ?? ''),
+        'Email di prova - ' . APP_NOME,
+        "Questa e' un'email di prova mandata dal gestionale magazzino di " . APP_NOME . ".\n"
+            . "Se la ricevi, la configurazione SMTP funziona.\n"
+    );
+    if (!$esito['ok']) {
+        errore($esito['errore']);
+    }
+    risposta(['ok' => true, 'a' => $a]);
 
 // ---- importazione da foglio di calcolo ---------------------------
 

@@ -733,23 +733,31 @@
       avviso.hidden = true;
     }
 
+    var tagConferma = function (s) {
+      return s.email_verificata
+        ? '<span class="tag ok">confermata</span>'
+        : '<span class="tag male">non confermata</span>';
+    };
+
     $('#tab-soci-attesa tbody').innerHTML = attesa.length ? attesa.map(function (s) {
       return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
+        '<td>' + tagConferma(s) + '</td>' +
         '<td>' + data(s.creato_il, true) + '</td>' +
         '<td style="text-align:right;white-space:nowrap">' +
           '<button class="bottone chiaro mini" data-approva-socio="' + esc(s.id) + '">Approva</button> ' +
           '<button class="bottone chiaro mini" data-rifiuta-socio="' + esc(s.id) + '">Rifiuta</button>' +
         '</td></tr>';
-    }).join('') : '<tr><td colspan="4" class="vuoto" style="padding:20px 12px">Nessuna richiesta in attesa.</td></tr>';
+    }).join('') : '<tr><td colspan="5" class="vuoto" style="padding:20px 12px">Nessuna richiesta in attesa.</td></tr>';
 
     $('#tab-soci-attivi tbody').innerHTML = attivi.length ? attivi.map(function (s) {
       return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
+        '<td>' + tagConferma(s) + '</td>' +
         '<td style="text-align:right;white-space:nowrap">' +
           '<button class="bottone chiaro mini" data-reset-socio="' + esc(s.id) + '">Reimposta password</button> ' +
           '<button class="bottone chiaro mini" data-disabilita-socio="' + esc(s.id) + '">Disabilita</button> ' +
           '<button class="bottone chiaro mini stretto" data-elimina-socio="' + esc(s.id) + '">Elimina</button>' +
         '</td></tr>';
-    }).join('') : '<tr><td colspan="3" class="vuoto" style="padding:20px 12px">Nessun socio attivo.</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="vuoto" style="padding:20px 12px">Nessun socio attivo.</td></tr>';
 
     $('#tab-soci-altri tbody').innerHTML = altri.length ? altri.map(function (s) {
       return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
@@ -809,8 +817,42 @@
     $('#i-accesso-soci').value = i.accesso_soci === 'account' ? 'account' : 'codice';
     mostraBloccoAccessoSoci();
 
+    $('#i-smtp-host').value         = i.smtp_host || '';
+    $('#i-smtp-porta').value        = i.smtp_porta || 587;
+    $('#i-smtp-sicurezza').value    = i.smtp_sicurezza || 'tls';
+    $('#i-smtp-utente').value       = i.smtp_utente || '';
+    $('#i-smtp-mittente').value     = i.smtp_mittente || '';
+    $('#i-smtp-nome-mittente').value = i.smtp_nome_mittente || '';
+    // la password non torna mai indietro dal server: si scrive solo se si vuole cambiarla
+    $('#i-smtp-password').value     = '';
+    $('#i-smtp-password').placeholder = i.smtp_password_impostata ? 'invariata, lascia vuoto per non cambiarla' : 'lascia vuoto per non cambiarla';
+    $('#i-smtp-esito').textContent  = '';
+
     disegnaColori();
     anteprimaTestata();
+  }
+
+  function smtpTest() {
+    var btn = $('#btn-smtp-test');
+    var esito = $('#i-smtp-esito');
+    btn.disabled = true;
+    esito.textContent = 'Invio in corso…';
+
+    var fd = new FormData($('#form-impostazioni'));
+    fd.append('csrf', CSRF);
+
+    fetch('api.php?azione=impostazioni_email_test', { method: 'POST', body: fd })
+      .then(function (r) {
+        if (r.status === 401) { location.href = 'login.php'; return { ok: false }; }
+        return r.json().catch(function () { return { ok: false, errore: 'Risposta non leggibile.' }; });
+      })
+      .then(function (d) {
+        btn.disabled = false;
+        esito.textContent = d.ok
+          ? 'Email di prova mandata a ' + (d.a || 'te') + '. Controlla la posta (anche lo spam).'
+          : (d.errore || 'Invio non riuscito.');
+      })
+      .catch(function () { btn.disabled = false; esito.textContent = 'Server non raggiungibile.'; });
   }
 
   function mostraBloccoAccessoSoci() {
@@ -1080,6 +1122,7 @@
     $('#btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
     ['#i-nome', '#i-sotto'].forEach(function (s) { $(s).addEventListener('input', anteprimaTestata); });
     $('#i-accesso-soci').addEventListener('change', mostraBloccoAccessoSoci);
+    $('#btn-smtp-test').addEventListener('click', smtpTest);
 
     var controlloPass = window.ControlloPassword.collega({
       pass:     $('#u-pass'),

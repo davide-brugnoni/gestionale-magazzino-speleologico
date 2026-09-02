@@ -28,8 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     } else {
         // volutamente generico: non deve far capire se un'email non
-        // esiste, e' ancora in attesa di approvazione o e' bloccata
-        $errore = 'Email o password non corretti, oppure l\'account e\' ancora in attesa di approvazione.';
+        // esiste, e' ancora in attesa di approvazione, non ha ancora
+        // confermato l'email, o e' bloccata
+        $errore = 'Email o password non corretti, oppure l\'account e\' ancora in attesa di approvazione o di conferma email.';
     }
 }
 $token = csrf();
@@ -64,7 +65,10 @@ $token = csrf();
       <button class="bottone luce" type="submit" style="width:100%;justify-content:center">Entra</button>
     </form>
 
-    <p style="margin:18px 0 0;font-size:13.5px;color:var(--grigio)">
+    <p style="margin:14px 0 0;font-size:13.5px;color:var(--grigio)">
+      <a href="soci-password-dimenticata.php">Password dimenticata?</a>
+    </p>
+    <p style="margin:8px 0 0;font-size:13.5px;color:var(--grigio)">
       Non hai un account? <a href="soci-registrati.php">Registrati</a>.
     </p>
     <p style="margin:8px 0 0;font-size:13.5px;color:var(--grigio)">

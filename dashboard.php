@@ -247,7 +247,7 @@ if ($nomeSuper === '') {
     <div class="titolo-sez">In attesa di approvazione</div>
     <div class="riquadro tabella-scroll">
       <table id="tab-soci-attesa">
-        <thead><tr><th>Nome</th><th>Email</th><th>Richiesta</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Email</th><th>Conferma</th><th>Richiesta</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -255,7 +255,7 @@ if ($nomeSuper === '') {
     <div class="titolo-sez" style="margin-top:22px">Soci attivi</div>
     <div class="riquadro tabella-scroll">
       <table id="tab-soci-attivi">
-        <thead><tr><th>Nome</th><th>Email</th><th></th></tr></thead>
+        <thead><tr><th>Nome</th><th>Email</th><th>Conferma</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -312,9 +312,45 @@ if ($nomeSuper === '') {
           <div id="i-blocco-account" hidden>
             <p class="meta" style="text-transform:none;letter-spacing:0">
               Ogni socio si registra da se' con email e password: l'account resta in attesa finche' non lo
-              approvi dalla scheda <strong>Soci</strong>.
+              approvi dalla scheda <strong>Soci</strong>, e deve anche confermare il suo indirizzo email.
             </p>
           </div>
+      </div></div>
+
+      <div class="riquadro"><div class="corpo">
+        <div class="titolo-sez" style="margin-top:0">Invio email (SMTP)</div>
+        <p class="meta" style="text-transform:none;letter-spacing:0;margin-top:0">
+          Serve per l'email di conferma registrazione e i link per reimpostare la password dei soci.
+          Lascia vuoto per non usare queste funzioni.
+        </p>
+        <div class="due">
+          <label class="campo"><span>Server SMTP</span>
+            <input type="text" name="smtp_host" id="i-smtp-host" placeholder="smtp.esempio.it"></label>
+          <label class="campo"><span>Porta</span>
+            <input type="number" name="smtp_porta" id="i-smtp-porta" min="1" max="65535"></label>
+        </div>
+        <label class="campo"><span>Sicurezza</span>
+          <select name="smtp_sicurezza" id="i-smtp-sicurezza">
+            <option value="tls">STARTTLS (di solito porta 587)</option>
+            <option value="ssl">TLS/SSL diretto (di solito porta 465)</option>
+            <option value="nessuna">Nessuna (sconsigliato)</option>
+          </select></label>
+        <div class="due">
+          <label class="campo"><span>Utente SMTP</span>
+            <input type="text" name="smtp_utente" id="i-smtp-utente" autocomplete="off"></label>
+          <label class="campo"><span>Password SMTP</span>
+            <input type="password" name="smtp_password" id="i-smtp-password" autocomplete="new-password" placeholder="lascia vuoto per non cambiarla"></label>
+        </div>
+        <div class="due">
+          <label class="campo"><span>Email mittente</span>
+            <input type="email" name="smtp_mittente" id="i-smtp-mittente" placeholder="magazzino@ilgruppo.it"></label>
+          <label class="campo"><span>Nome mittente</span>
+            <input type="text" name="smtp_nome_mittente" id="i-smtp-nome-mittente"></label>
+        </div>
+        <div class="azioni-fondo" style="justify-content:flex-start;padding:0;border:0">
+          <button class="bottone chiaro" type="button" id="btn-smtp-test">Manda un'email di prova</button>
+        </div>
+        <p class="meta" id="i-smtp-esito" style="text-transform:none;letter-spacing:0;margin-top:10px"></p>
       </div></div>
 
       <div class="riquadro"><div class="corpo">

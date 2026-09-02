@@ -17,6 +17,16 @@ function impostazioni_predefinite(): array
         'segreto'           => '',      // usato per firmare il cookie dei soci
         'installato_il'     => '',
 
+        // Invio email (conferma registrazione, reset password dei soci).
+        // Vuoto = non configurato: le email semplicemente non partono.
+        'smtp_host'         => '',
+        'smtp_porta'        => 587,
+        'smtp_sicurezza'    => 'tls',   // 'tls' | 'ssl' | 'nessuna'
+        'smtp_utente'       => '',
+        'smtp_password'     => '',
+        'smtp_mittente'     => '',
+        'smtp_nome_mittente' => '',
+
         // Chi ha le chiavi di casa: l'id dell'amministratore che ha
         // fatto l'installazione, salvo passaggio di mano. Vuoto = vale
         // il primo account creato (vedi superadmin_id() in auth.php).
