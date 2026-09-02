@@ -45,6 +45,27 @@ function esempio_inventario(): array
     return is_array($letto) ? $letto : [];
 }
 
+/**
+ * Le foto di esempio che viaggiano nel pacchetto, abbinate all'inventario
+ * di esempio tramite il campo "foto" di ogni articolo. Stanno in
+ * esempi/foto-esempio/, non in foto/: stesso motivo dell'inventario, un
+ * aggiornamento non deve mai toccare le foto vere del magazzino.
+ */
+function esempio_foto_copia(array $inventario): void
+{
+    $origine = __DIR__ . '/esempi/foto-esempio';
+    if (!is_dir($origine) || !is_dir(FOTO_DIR)) {
+        return;
+    }
+    $nomi = array_unique(array_filter(array_column($inventario, 'foto')));
+    foreach ($nomi as $nome) {
+        $sorgente = $origine . '/' . basename($nome);
+        if (is_file($sorgente)) {
+            copy($sorgente, FOTO_DIR . '/' . basename($nome));
+        }
+    }
+}
+
 function sistema_permessi(): array
 {
     $esito = [];
@@ -249,7 +270,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($scelta === 'file' && !empty($bozza['import']['articoli'])) {
                         salva_importazione($bozza['import']['articoli'], 'sostituisci');
                     } elseif ($scelta === 'esempio') {
-                        store_write('inventario', esempio_inventario());
+                        $inventario = esempio_inventario();
+                        store_write('inventario', $inventario);
+                        esempio_foto_copia($inventario);
                     } else {
                         store_write('inventario', []);
                     }
@@ -589,13 +612,17 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
             <button class="bottone chiaro" type="submit">Parti da zero</button>
           </form>
 
-          <?php $precaricati = count(esempio_inventario()); ?>
+          <?php
+            $inventario_esempio = esempio_inventario();
+            $precaricati = count($inventario_esempio);
+            $con_foto = count(array_unique(array_filter(array_column($inventario_esempio, 'foto'))));
+          ?>
           <?php if ($precaricati): ?>
             <form method="post" style="margin-top:18px">
               <input type="hidden" name="csrf" value="<?= h($token) ?>">
               <input type="hidden" name="azione" value="inventario">
               <input type="hidden" name="scelta" value="esempio">
-              <p class="guida">Nel pacchetto ci sono gia' <strong><?= $precaricati ?> articoli</strong> di esempio: puoi tenerli e modificarli.</p>
+              <p class="guida">Nel pacchetto ci sono gia' <strong><?= $precaricati ?> articoli</strong> di esempio<?= $con_foto ? ', ' . $con_foto . ' con tanto di foto,' : '' ?>: puoi tenerli e modificarli.</p>
               <button class="bottone chiaro" type="submit">Tieni l'elenco precaricato</button>
             </form>
           <?php endif; ?>
