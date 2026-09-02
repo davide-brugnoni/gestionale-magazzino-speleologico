@@ -95,8 +95,12 @@ if ($nomeSuper === '') {
       <select id="inv-cat"><option value="">Tutte le categorie</option></select>
       <select id="inv-ordine">
         <option value="cat">Ordina per categoria</option>
+        <option value="nome">Ordina per nome</option>
+        <option value="totale">Prima i piu' numerosi</option>
+        <option value="disponibili">Prima i piu' disponibili</option>
         <option value="scorta">Prima le scorte basse</option>
         <option value="fuori">Prima quelli piu' in giro</option>
+        <option value="comprare">Prima da comprare</option>
       </select>
       <span class="spinta"></span>
       <a class="bottone chiaro" href="export.php?cosa=inventario">Scarica CSV</a>

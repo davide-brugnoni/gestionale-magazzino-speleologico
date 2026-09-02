@@ -258,8 +258,12 @@
       return (a.categoria + ' ' + a.nome + ' ' + (a.note || '')).toLowerCase().indexOf(q) !== -1;
     });
 
-    if (ord === 'scorta') lista.sort(function (x, y) { return x.disponibile - y.disponibile; });
-    if (ord === 'fuori')  lista.sort(function (x, y) { return y.in_prestito - x.in_prestito; });
+    if (ord === 'nome')        lista.sort(function (x, y) { return x.nome.localeCompare(y.nome, 'it'); });
+    if (ord === 'totale')      lista.sort(function (x, y) { return y.quantita - x.quantita; });
+    if (ord === 'disponibili') lista.sort(function (x, y) { return y.disponibile - x.disponibile; });
+    if (ord === 'scorta')      lista.sort(function (x, y) { return x.disponibile - y.disponibile; });
+    if (ord === 'fuori')       lista.sort(function (x, y) { return y.in_prestito - x.in_prestito; });
+    if (ord === 'comprare')    lista.sort(function (x, y) { return ((y.da_comprare || 0) - (x.da_comprare || 0)) || (mancanti(y) - mancanti(x)); });
 
     $('#tab-inventario tbody').innerHTML = lista.length ? lista.map(function (a) {
       return '<tr id="art-' + esc(a.id) + '">' +
