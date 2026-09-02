@@ -50,6 +50,8 @@ function esempio_inventario(): array
  * di esempio tramite il campo "foto" di ogni articolo. Stanno in
  * esempi/foto-esempio/, non in foto/: stesso motivo dell'inventario, un
  * aggiornamento non deve mai toccare le foto vere del magazzino.
+ * Si copiano in foto/ a prescindere dalla scelta fatta per l'inventario:
+ * cosi' sono gia' pronte anche partendo da zero o importando un foglio.
  */
 function esempio_foto_copia(array $inventario): void
 {
@@ -270,15 +272,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($scelta === 'file' && !empty($bozza['import']['articoli'])) {
                         salva_importazione($bozza['import']['articoli'], 'sostituisci');
                     } elseif ($scelta === 'esempio') {
-                        $inventario = esempio_inventario();
-                        store_write('inventario', $inventario);
-                        esempio_foto_copia($inventario);
+                        store_write('inventario', esempio_inventario());
                     } else {
                         store_write('inventario', []);
                     }
-
                     // 4. permessi e chiusura
                     sistema_permessi();
+                    // Le foto di esempio arrivano comunque: qualunque scelta
+                    // hai fatto per l'inventario, sono gia' pronte in foto/
+                    // se un giorno le vuoi assegnare a un tuo articolo. Dopo
+                    // sistema_permessi(), cosi' la cartella foto/ esiste gia'.
+                    esempio_foto_copia(esempio_inventario());
                     segna_installato();
                     login($bozza['admin']['user'], $bozza['admin']['pass']);
                     unset($_SESSION['installa']);

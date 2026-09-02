@@ -4,9 +4,12 @@ Qui vanno i file immagine delle foto abbinate all'inventario di esempio
 (`esempi/inventario-esempio.json`). Ogni articolo che ha un campo `"foto"`
 punta a un file con lo stesso nome dentro questa cartella.
 
-All'installazione, se scegli "Tieni l'elenco precaricato", questi file
-vengono copiati dentro `foto/` (vedi `esempio_foto_copia()` in
-`installa.php`).
+All'installazione questi file vengono sempre copiati dentro `foto/` (vedi
+`esempio_foto_copia()` in `installa.php`), qualunque cosa tu scelga per
+l'inventario — anche partendo da zero o importando un tuo foglio. Cosi'
+sono gia' pronte se un giorno vuoi assegnarle a un tuo articolo. Restano
+comunque visibili nella galleria "foto gia' presenti" solo per gli
+articoli che le referenziano nel campo `foto`.
 
 Nomi attesi (34 file, alcuni condivisi fra piu' articoli):
 
