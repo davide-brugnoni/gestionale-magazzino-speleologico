@@ -4,11 +4,18 @@
 
   var stato = { inventario: [], prestiti: [], carrello: {}, giorniRitardo: 14, prestitoAperto: null, puoRiportareTutti: true };
 
-  // Se il gruppo usa gli account personali e c'e' un socio loggato, il
-  // suo nome non e' piu' un campo di testo libero: lo decide il
-  // server (vedi api.php), qui si mostra solo bloccato e precompilato.
-  var SOCIO = document.body.getAttribute('data-accesso-soci') === 'account' && document.body.getAttribute('data-socio-nome')
-    ? { nome: document.body.getAttribute('data-socio-nome'), email: document.body.getAttribute('data-socio-email') }
+  // Chi e' loggato (socio con account, o l'amministratore) precompila i
+  // campi del prelievo per comodita', ma restano modificabili: capita
+  // che chi ritira materialmente la roba non sia chi ha fatto l'accesso
+  // (es. si ritira "per conto di" qualcun altro). 'bloccato' distingue
+  // solo il socio con un vero account (contano ai fini del rientro: puo'
+  // chiudere solo i prelievi fatti dal proprio account, vedi apriRientro).
+  var SOCIO = document.body.getAttribute('data-socio-nome')
+    ? {
+        nome:      document.body.getAttribute('data-socio-nome'),
+        email:     document.body.getAttribute('data-socio-email'),
+        bloccato:  document.body.getAttribute('data-socio-bloccato') === '1'
+      }
     : null;
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
@@ -184,7 +191,7 @@
       return { id_articolo: id, qta: stato.carrello[id] };
     });
     if (!righe.length) { toast('Aggiungi almeno un articolo.', 'male'); return; }
-    if (!SOCIO && $('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
+    if ($('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
 
     var btn = $('#btn-preleva');
     btn.disabled = true;
@@ -254,7 +261,7 @@
       '<div class="avviso luce"><strong>' + esc(p.persona) + '</strong> — uscito il ' + data(p.uscita) +
       (p.destinazione ? ' per ' + esc(p.destinazione) : '') + '.<br>Segna quanti pezzi rientrano e quanti mancano.</div>' +
       '<label class="campo"><span>Chi sta riconsegnando</span><input type="text" id="r-chi" value="' +
-        esc(SOCIO ? SOCIO.nome : p.persona) + '"' + (SOCIO ? ' readonly' : '') + '></label>' +
+        esc(SOCIO && SOCIO.bloccato ? SOCIO.nome : p.persona) + '"' + (SOCIO && SOCIO.bloccato ? ' readonly' : '') + '></label>' +
       '<div class="tabella-scroll"><table><thead><tr><th>Articolo</th><th class="num">Fuori</th><th class="num" style="width:86px">Rientrati</th><th class="num" style="width:86px">Persi o rotti</th></tr></thead><tbody>' +
       p.righe.map(function (r) {
         return '<tr data-riga="' + esc(r.id_articolo) + '">' +
@@ -328,12 +335,14 @@
   $('#velo-rientro').addEventListener('click', function (e) { if (e.target === this) chiudiRientro(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudiRientro(); });
 
-  // Con l'account personale il nome di chi preleva non si scrive piu':
-  // e' quello dell'account, e il server lo impone comunque.
+  // Il nome di chi ritira si precompila con quello di chi e' loggato,
+  // ma resta modificabile: chi ha fatto l'accesso non e' sempre chi
+  // si porta via il materiale (es. si ritira "per conto di" qualcun
+  // altro). Chi ha fatto l'accesso resta comunque tracciato lato
+  // server, a prescindere dal nome scritto qui.
   if (SOCIO) {
     var campoPersona = $('#p-persona');
     campoPersona.value = SOCIO.nome;
-    campoPersona.readOnly = true;
     if (SOCIO.email && !$('#p-contatto').value) {
       $('#p-contatto').value = SOCIO.email;
     }
