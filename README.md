@@ -139,7 +139,8 @@ Reimportando più avanti, gli articoli già presenti non vengono toccati: giacen
 foto e storico restano dove sono. Vengono aggiunti solo i nuovi.
 
 L'inventario di esempio contiene i 57 articoli del file di magazzino attuale
-(470 pezzi in carico), con i mancanti al conteggio e la lista acquisti.
+(470 pezzi in carico), con i mancanti al conteggio e la lista acquisti, e le
+foto di 44 di questi articoli.
 
 ## Sicurezza in breve
 
