@@ -143,7 +143,7 @@ L'inventario di esempio contiene i 57 articoli del file di magazzino attuale
 
 ## Sicurezza in breve
 
-- **Gestione**: nome utente e password, hash bcrypt, mai in chiaro da nessuna parte.
+- **Gestione**: email e password, hash bcrypt, mai in chiaro da nessuna parte.
 - **Password**: almeno 8 caratteri, con una minuscola, una maiuscola e un numero.
   Si scrive due volte e un elenco sotto ai campi dice cosa manca mentre digiti,
   sia in installazione sia in **Gestione → Accessi**. Le regole stanno in un posto
@@ -182,7 +182,7 @@ Lasciandolo vuoto l'area soci resta aperta a chiunque abbia il link.
 | Superadmin | `dashboard.php` | Tutto quanto sopra, più: aggiungere e revocare amministratori, reimpostare le loro password, le impostazioni del gruppo, il codice dei soci, il backup e gli aggiornamenti |
 
 L'area soci non ha password: chi prende il materiale scrive nome e cognome.
-La gestione è protetta da nome utente e password (hash bcrypt, sessione PHP).
+La gestione è protetta da email e password (hash bcrypt, sessione PHP).
 
 **Il Superadmin è uno solo**, ed è chi ha fatto l'installazione. Le schede
 Impostazioni e Aggiornamenti agli altri amministratori non vengono nemmeno

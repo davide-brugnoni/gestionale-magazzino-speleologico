@@ -100,8 +100,8 @@ function e_superadmin(): bool
 function utente_crea(string $user, string $password, string $nome): array
 {
     $user = strtolower(trim($user));
-    if ($user === '') {
-        return ['ok' => false, 'errore' => 'Serve un nome utente.'];
+    if (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
+        return ['ok' => false, 'errore' => 'Scrivi un indirizzo email valido.'];
     }
     $regola = password_valida($password);
     if (!$regola['ok']) {
@@ -111,7 +111,7 @@ function utente_crea(string $user, string $password, string $nome): array
         $utenti = store_read('utenti');
         foreach ($utenti as $u) {
             if ($u['user'] === $user) {
-                return ['ok' => false, 'errore' => 'Questo nome utente esiste gia\'.'];
+                return ['ok' => false, 'errore' => 'Questa email ha gia\' un accesso.'];
             }
         }
         $utenti[] = [

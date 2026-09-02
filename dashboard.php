@@ -191,11 +191,11 @@ if ($nomeSuper === '') {
     <div class="titolo-sez">Chi puo' entrare in gestione</div>
     <div class="griglia g2" style="align-items:start">
       <div class="riquadro tabella-scroll">
-        <table id="tab-utenti"><thead><tr><th>Nome</th><th>Utente</th><th></th></tr></thead><tbody></tbody></table>
+        <table id="tab-utenti"><thead><tr><th>Nome</th><th>Email</th><th></th></tr></thead><tbody></tbody></table>
       </div>
       <div class="riquadro"><div class="corpo">
         <label class="campo"><span>Nome e cognome</span><input type="text" id="u-nome"></label>
-        <label class="campo"><span>Nome utente</span><input type="text" id="u-user" autocomplete="off"></label>
+        <label class="campo"><span>Indirizzo email</span><input type="email" id="u-user" autocomplete="off"></label>
         <label class="campo"><span>Password</span><input type="password" id="u-pass" autocomplete="new-password"></label>
         <label class="campo"><span>Ripeti la password</span><input type="password" id="u-pass2" autocomplete="new-password"></label>
         <ul class="regole-pass" id="u-pass-esito"></ul>

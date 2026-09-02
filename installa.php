@@ -154,8 +154,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if (mb_strlen($nome) < 3) {
                 $errore = 'Scrivi nome e cognome dell\'amministratore.';
-            } elseif (!preg_match('/^[a-zA-Z0-9._-]{3,}$/', $user)) {
-                $errore = 'Il nome utente deve avere almeno 3 caratteri, senza spazi.';
+            } elseif (!filter_var($user, FILTER_VALIDATE_EMAIL)) {
+                $errore = 'Scrivi un indirizzo email valido per l\'amministratore.';
             } elseif (!($regola = password_valida($pass))['ok']) {
                 $errore = $regola['errore'];
             } elseif ($pass !== $pass2) {
@@ -410,8 +410,8 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <label class="campo"><span>Nome e cognome *</span>
         <input type="text" name="admin_nome" value="<?= h($bozza['admin']['nome'] ?? '') ?>" required autofocus></label>
       <div class="due">
-        <label class="campo"><span>Nome utente *</span>
-          <input type="text" name="admin_user" value="<?= h($bozza['admin']['user'] ?? '') ?>" autocomplete="off" required></label>
+        <label class="campo"><span>Indirizzo email *</span>
+          <input type="email" name="admin_user" value="<?= h($bozza['admin']['user'] ?? '') ?>" autocomplete="email" required></label>
         <label class="campo"><span>Password *</span>
           <input type="password" name="admin_pass" id="admin_pass" autocomplete="new-password" minlength="8" required></label>
       </div>
@@ -616,7 +616,7 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <tr><th>Gruppo</th><td><?= h($bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Intestazione</th><td><?= h($bozza['sottotitolo'] . ' ' . $bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Logo</th><td><?= !empty($bozza['logo']) ? 'caricato' : 'nessuno, resta il pallino di serie' ?></td></tr>
-      <tr><th>Superadmin</th><td><?= h($bozza['admin']['nome']) ?> (utente <?= h($bozza['admin']['user']) ?>)</td></tr>
+      <tr><th>Superadmin</th><td><?= h($bozza['admin']['nome']) ?> (<?= h($bozza['admin']['user']) ?>)</td></tr>
       <tr><th>Area soci</th><td><?php
         if (($bozza['accesso_soci'] ?? 'codice') === 'account') {
             echo 'account personali (email + password), con approvazione';
