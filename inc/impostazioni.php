@@ -11,6 +11,7 @@ function impostazioni_predefinite(): array
         'sottotitolo'       => 'Gestionale magazzino',
         'logo'              => '',
         'codice_soci_hash'  => '',      // vuoto = area soci aperta
+        'accesso_soci'      => 'codice', // 'codice' | 'account' - come entra chi non e' amministratore
         'codice_giorni'     => 90,
         'giorni_ritardo'    => 14,
         'segreto'           => '',      // usato per firmare il cookie dei soci

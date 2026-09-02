@@ -43,6 +43,7 @@ if ($nomeSuper === '') {
       <button class="tab" data-vai="storico">Storico</button>
       <button class="tab" data-vai="movimenti">Movimenti</button>
       <button class="tab" data-vai="accessi">Accessi</button>
+      <button class="tab" data-vai="soci">Soci</button>
       <?php if ($super): ?>
       <button class="tab" data-vai="impostazioni">Impostazioni</button>
       <button class="tab" data-vai="aggiornamenti">Aggiornamenti<span class="pallino" id="badge-agg" hidden></span></button>
@@ -235,6 +236,35 @@ if ($nomeSuper === '') {
     <?php endif; ?>
   </section>
 
+  <!-- ============ SOCI ============ -->
+  <section id="sez-soci" class="sezione">
+    <div class="avviso" id="soci-avviso-modalita" hidden></div>
+
+    <div class="titolo-sez">In attesa di approvazione</div>
+    <div class="riquadro tabella-scroll">
+      <table id="tab-soci-attesa">
+        <thead><tr><th>Nome</th><th>Email</th><th>Richiesta</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="titolo-sez" style="margin-top:22px">Soci attivi</div>
+    <div class="riquadro tabella-scroll">
+      <table id="tab-soci-attivi">
+        <thead><tr><th>Nome</th><th>Email</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="titolo-sez" style="margin-top:22px">Disabilitati e rifiutati</div>
+    <div class="riquadro tabella-scroll">
+      <table id="tab-soci-altri">
+        <thead><tr><th>Nome</th><th>Email</th><th>Stato</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
   <?php if ($super): ?>
   <!-- ============ IMPOSTAZIONI ============ -->
   <section id="sez-impostazioni" class="sezione">
@@ -260,12 +290,27 @@ if ($nomeSuper === '') {
             <label class="campo"><span>Ricorda dispositivo (giorni)</span><input type="number" name="codice_giorni" id="i-giorni" min="1" max="365"></label>
           </div>
 
-          <div class="titolo-sez" style="margin-top:8px">Area soci</div>
-          <p class="meta" id="i-stato-area" style="text-transform:none;letter-spacing:0;margin-bottom:10px"></p>
-          <label class="campo"><span>Nuovo codice del gruppo</span>
-            <input type="text" name="codice_soci" autocomplete="off" placeholder="lascia vuoto per non cambiarlo"></label>
-          <label class="riga-spunta"><input type="checkbox" name="apri_area" value="1"> apri l'area soci a chiunque abbia il link</label>
-          <p class="meta" style="text-transform:none;letter-spacing:0">Cambiando il codice, i dispositivi ricordati devono reinserirlo.</p>
+          <div class="titolo-sez" style="margin-top:8px">Come entrano i soci</div>
+          <label class="campo"><span>Modo di accesso all'area soci</span>
+            <select name="accesso_soci" id="i-accesso-soci">
+              <option value="codice">Codice di gruppo condiviso</option>
+              <option value="account">Account personali (email + password), con approvazione</option>
+            </select>
+          </label>
+
+          <div id="i-blocco-codice">
+            <p class="meta" id="i-stato-area" style="text-transform:none;letter-spacing:0;margin-bottom:10px"></p>
+            <label class="campo"><span>Nuovo codice del gruppo</span>
+              <input type="text" name="codice_soci" autocomplete="off" placeholder="lascia vuoto per non cambiarlo"></label>
+            <label class="riga-spunta"><input type="checkbox" name="apri_area" value="1"> apri l'area soci a chiunque abbia il link</label>
+            <p class="meta" style="text-transform:none;letter-spacing:0">Cambiando il codice, i dispositivi ricordati devono reinserirlo.</p>
+          </div>
+          <div id="i-blocco-account" hidden>
+            <p class="meta" style="text-transform:none;letter-spacing:0">
+              Ogni socio si registra da se' con email e password: l'account resta in attesa finche' non lo
+              approvi dalla scheda <strong>Soci</strong>.
+            </p>
+          </div>
       </div></div>
 
       <div class="riquadro"><div class="corpo">

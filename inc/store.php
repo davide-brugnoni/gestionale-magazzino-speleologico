@@ -34,6 +34,15 @@ function store_init(): void
     }
     prestiti_migra();
 
+    // ogni account socio sta in un file suo, dentro data/soci/
+    if (!is_dir(soci_dir())) {
+        mkdir(soci_dir(), 0775, true);
+    }
+    $htSoci = soci_dir() . '/.htaccess';
+    if (!file_exists($htSoci)) {
+        file_put_contents($htSoci, "Require all denied\nDeny from all\n");
+    }
+
     if (!is_dir(FOTO_DIR)) {
         mkdir(FOTO_DIR, 0775, true);
     }
@@ -316,6 +325,78 @@ function prestiti_migra(): void
         }
         @rename($vecchio, $vecchio . '.migrato-' . date('Y-m-d-His'));
     });
+}
+
+// --------------------------- Account soci, un file ciascuno ------
+// Stesso pattern dei prelievi: ogni account vive nel suo file
+// data/soci/<id>.json, cosi' si sfoglia senza caricare tutto e si
+// puo' cancellare quando serve. Le scritture passano comunque da
+// store_transazione().
+
+function soci_dir(): string
+{
+    return DATA_DIR . '/soci';
+}
+
+/** Percorso del file di un account socio. Stringa vuota se l'id non e' utilizzabile. */
+function socio_file(string $id): string
+{
+    $sicuro = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($id));
+    if ($sicuro === '' || $sicuro[0] === '.') {
+        return '';
+    }
+    return soci_dir() . '/' . $sicuro . '.json';
+}
+
+/** Tutti gli account soci. */
+function soci_leggi_tutti(): array
+{
+    $soci = [];
+    foreach (glob(soci_dir() . '/*.json') ?: [] as $f) {
+        $s = json_decode((string)file_get_contents($f), true);
+        if (is_array($s) && isset($s['id'])) {
+            $soci[] = $s;
+        }
+    }
+    return $soci;
+}
+
+function socio_leggi(string $id): ?array
+{
+    $f = socio_file($id);
+    if ($f === '' || !is_file($f)) {
+        return null;
+    }
+    $s = json_decode((string)file_get_contents($f), true);
+    return is_array($s) && isset($s['id']) ? $s : null;
+}
+
+/** Scrittura atomica del singolo account socio. */
+function socio_salva(array $socio): bool
+{
+    $f = socio_file((string)($socio['id'] ?? ''));
+    if ($f === '') {
+        return false;
+    }
+    if (!is_dir(soci_dir())) {
+        mkdir(soci_dir(), 0775, true);
+    }
+    $json = json_encode($socio, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($json === false) {
+        return false;
+    }
+    $tmp = $f . '.' . getmypid() . '.tmp';
+    if (file_put_contents($tmp, $json . "\n") === false) {
+        return false;
+    }
+    @chmod($tmp, 0664);
+    return rename($tmp, $f);
+}
+
+function socio_elimina(string $id): bool
+{
+    $f = socio_file($id);
+    return $f !== '' && is_file($f) && @unlink($f);
 }
 
 // --------------------------- Logica di dominio ------------------

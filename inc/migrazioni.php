@@ -42,6 +42,7 @@ function migrazioni_elenco(): array
 {
     return [
         1 => 'migrazione_0001_superadmin',
+        2 => 'migrazione_0002_accesso_soci',
     ];
 }
 
@@ -87,6 +88,24 @@ function migrazione_0001_superadmin(): void
     }
 
     $salvate['superadmin_id'] = $nuovo;
+    store_write('impostazioni', $salvate);
+}
+
+/**
+ * Rende esplicito su disco il modo in cui i soci entravano prima che
+ * esistesse la scelta: il codice di gruppo. Senza questa migrazione
+ * il valore di serie arriverebbe comunque (impostazioni() fa il
+ * merge con impostazioni_predefinite()), ma qui si scrive per
+ * davvero: lo schema_versione resta un riferimento affidabile di
+ * cosa e' gia' stato scritto e cosa no.
+ */
+function migrazione_0002_accesso_soci(): void
+{
+    $salvate = store_read('impostazioni');
+    if (isset($salvate['accesso_soci'])) {
+        return;                                     // gia' fatta
+    }
+    $salvate['accesso_soci'] = 'codice';
     store_write('impostazioni', $salvate);
 }
 

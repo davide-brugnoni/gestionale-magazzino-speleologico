@@ -11,7 +11,7 @@
   // bandiera, altrimenti $() torna null e la dashboard muore intera.
   // A dire di no per davvero e' comunque il server, non questa riga.
   var SUPER  = document.body.getAttribute('data-super') === '1';
-  var D = { inventario: [], aperti: [], storico: [], movimenti: [], utenti: [], kpi: {}, giorni: 14 };
+  var D = { inventario: [], aperti: [], storico: [], movimenti: [], utenti: [], accountSoci: [], kpi: {}, giorni: 14 };
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
   var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -132,6 +132,7 @@
       D.storico    = d.storico;
       D.movimenti  = d.movimenti;
       D.utenti     = d.utenti || [];
+      D.accountSoci = d.account_soci || [];
       D.kpi        = d.kpi;
       D.giorni     = d.giorni_ritardo;
       FOTO         = d.foto || {};
@@ -147,6 +148,7 @@
       disegnaFuori();
       disegnaStorico();
       disegnaMovimenti();
+      disegnaSoci();
       if (SUPER) { disegnaUtenti(); disegnaImpostazioni(); }
       $('#pie-aggiornato').textContent = 'Aggiornato ' + new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
     });
@@ -691,6 +693,77 @@
     });
   }
 
+  // ---------------------------------------------------------- soci
+
+  function disegnaSoci() {
+    var attesa = D.accountSoci.filter(function (s) { return s.stato === 'in_attesa'; });
+    var attivi = D.accountSoci.filter(function (s) { return s.stato === 'attivo'; });
+    var altri  = D.accountSoci.filter(function (s) { return s.stato === 'disabilitato' || s.stato === 'rifiutato'; });
+
+    var avviso = $('#soci-avviso-modalita');
+    if (D.impostazioni && D.impostazioni.accesso_soci !== 'account') {
+      avviso.hidden = false;
+      avviso.textContent = 'L\'area soci usa ancora il codice di gruppo. Gli account restano in attesa ' +
+        'finche\' non passi alla modalita\' "account personali" dalle Impostazioni.';
+    } else {
+      avviso.hidden = true;
+    }
+
+    $('#tab-soci-attesa tbody').innerHTML = attesa.length ? attesa.map(function (s) {
+      return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
+        '<td>' + data(s.creato_il, true) + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          '<button class="bottone chiaro mini" data-approva-socio="' + esc(s.id) + '">Approva</button> ' +
+          '<button class="bottone chiaro mini" data-rifiuta-socio="' + esc(s.id) + '">Rifiuta</button>' +
+        '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="vuoto" style="padding:20px 12px">Nessuna richiesta in attesa.</td></tr>';
+
+    $('#tab-soci-attivi tbody').innerHTML = attivi.length ? attivi.map(function (s) {
+      return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          '<button class="bottone chiaro mini" data-reset-socio="' + esc(s.id) + '">Reimposta password</button> ' +
+          '<button class="bottone chiaro mini" data-disabilita-socio="' + esc(s.id) + '">Disabilita</button> ' +
+          '<button class="bottone chiaro mini stretto" data-elimina-socio="' + esc(s.id) + '">Elimina</button>' +
+        '</td></tr>';
+    }).join('') : '<tr><td colspan="3" class="vuoto" style="padding:20px 12px">Nessun socio attivo.</td></tr>';
+
+    $('#tab-soci-altri tbody').innerHTML = altri.length ? altri.map(function (s) {
+      return '<tr><td class="nome-art">' + esc(s.nome) + '</td><td class="meta">' + esc(s.email) + '</td>' +
+        '<td>' + (s.stato === 'disabilitato' ? '<span class="tag male">disabilitato</span>' : '<span class="tag">rifiutato</span>') + '</td>' +
+        '<td style="text-align:right;white-space:nowrap">' +
+          (s.stato === 'disabilitato' ? '<button class="bottone chiaro mini" data-riabilita-socio="' + esc(s.id) + '">Riabilita</button> ' : '') +
+          '<button class="bottone chiaro mini stretto" data-elimina-socio="' + esc(s.id) + '">Elimina</button>' +
+        '</td></tr>';
+    }).join('') : '<tr><td colspan="4" class="vuoto" style="padding:20px 12px">Nessuno.</td></tr>';
+  }
+
+  function pannelloResetSocio(id) {
+    var s = D.accountSoci.filter(function (x) { return x.id === id; })[0];
+    if (!s) return;
+    apriPannello('Reimposta la password di ' + s.nome,
+      '<p class="guida" style="margin-top:0">Scegli una password provvisoria e comunicagliela a voce. ' +
+      'Al primo accesso dovra\' sostituirla con una sua: cosi\' non resti a conoscenza della password di nessuno.</p>' +
+      '<label class="campo"><span>Password provvisoria</span>' +
+      '<input type="password" id="rps-pass" autocomplete="new-password"></label>' +
+      '<label class="campo"><span>Ripeti la password</span>' +
+      '<input type="password" id="rps-pass2" autocomplete="new-password"></label>' +
+      '<ul class="regole-pass" id="rps-esito"></ul>',
+      function () {
+        if (!controllo.valida()) { toast('La password non rispetta ancora le regole.', 'male'); return; }
+        chiudiPannello();
+        scrivi('socio_reset_password', { id: id, nuova: $('#rps-pass').value },
+               'Password reimpostata. Comunicagliela a voce.');
+      },
+      'Reimposta');
+
+    var controllo = window.ControlloPassword.collega({
+      pass:     $('#rps-pass'),
+      conferma: $('#rps-pass2'),
+      esito:    $('#rps-esito'),
+      bottone:  $('#velo-ok')
+    });
+  }
+
   // ---------------------------------------------------------- impostazioni
 
   function disegnaImpostazioni() {
@@ -709,8 +782,17 @@
       ? 'Adesso serve il codice del gruppo per entrare nell\'area soci.'
       : 'Adesso l\'area soci è aperta a chiunque abbia il link.';
 
+    $('#i-accesso-soci').value = i.accesso_soci === 'account' ? 'account' : 'codice';
+    mostraBloccoAccessoSoci();
+
     disegnaColori();
     anteprimaTestata();
+  }
+
+  function mostraBloccoAccessoSoci() {
+    var account = $('#i-accesso-soci').value === 'account';
+    $('#i-blocco-codice').hidden  = account;
+    $('#i-blocco-account').hidden = !account;
   }
 
   // ------------------------------------------------- aspetto
@@ -886,7 +968,7 @@
       return;
     }
 
-    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-prestito],[data-elimina-utente],[data-reset-utente],[data-articolo]');
+    var t = e.target.closest('[data-vai],[data-chiudi],[data-carico],[data-scarico],[data-modifica],[data-chiudi-prestito],[data-espandi],[data-elimina-prestito],[data-elimina-utente],[data-reset-utente],[data-articolo],[data-approva-socio],[data-rifiuta-socio],[data-reset-socio],[data-disabilita-socio],[data-riabilita-socio],[data-elimina-socio]');
     if (!t) return;
 
     if (t.hasAttribute('data-vai')) {
@@ -923,6 +1005,33 @@
       pannelloReset(t.getAttribute('data-reset-utente'));
       return;
     }
+    if (t.hasAttribute('data-approva-socio')) {
+      scrivi('socio_approva', { id: t.getAttribute('data-approva-socio') }, 'Account approvato.');
+      return;
+    }
+    if (t.hasAttribute('data-rifiuta-socio')) {
+      if (!confirm('Rifiuti questa registrazione?')) return;
+      scrivi('socio_rifiuta', { id: t.getAttribute('data-rifiuta-socio') }, 'Registrazione rifiutata.');
+      return;
+    }
+    if (t.hasAttribute('data-reset-socio')) {
+      pannelloResetSocio(t.getAttribute('data-reset-socio'));
+      return;
+    }
+    if (t.hasAttribute('data-disabilita-socio')) {
+      if (!confirm('Disabiliti l\'accesso di questo socio?')) return;
+      scrivi('socio_disabilita', { id: t.getAttribute('data-disabilita-socio') }, 'Socio disabilitato.');
+      return;
+    }
+    if (t.hasAttribute('data-riabilita-socio')) {
+      scrivi('socio_riabilita', { id: t.getAttribute('data-riabilita-socio') }, 'Socio riabilitato.');
+      return;
+    }
+    if (t.hasAttribute('data-elimina-socio')) {
+      if (!confirm('Elimini definitivamente questo account socio?')) return;
+      scrivi('socio_elimina', { id: t.getAttribute('data-elimina-socio') }, 'Account eliminato.');
+      return;
+    }
     if (t.hasAttribute('data-articolo')) {
       var tabInv = $('.tab[data-vai="inventario"]');
       $$('.tab').forEach(function (b) { b.classList.toggle('att', b === tabInv); });
@@ -946,6 +1055,7 @@
   if (SUPER) {
     $('#btn-salva-impostazioni').addEventListener('click', salvaImpostazioni);
     ['#i-nome', '#i-sotto'].forEach(function (s) { $(s).addEventListener('input', anteprimaTestata); });
+    $('#i-accesso-soci').addEventListener('change', mostraBloccoAccessoSoci);
 
     var controlloPass = window.ControlloPassword.collega({
       pass:     $('#u-pass'),
