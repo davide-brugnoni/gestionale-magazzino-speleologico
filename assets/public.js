@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var stato = { inventario: [], prestiti: [], carrello: {}, giorniRitardo: 14, prestitoAperto: null };
+  var stato = { inventario: [], prestiti: [], carrello: {}, giorniRitardo: 14, prestitoAperto: null, puoRiportareTutti: true };
 
   // Se il gruppo usa gli account personali e c'e' un socio loggato, il
   // suo nome non e' piu' un campo di testo libero: lo decide il
@@ -92,6 +92,7 @@
       stato.prestiti     = d.prestiti;
       FOTO               = d.foto || {};
       stato.giorniRitardo = d.giorni_ritardo;
+      stato.puoRiportareTutti = !!d.puo_riportare_tutti;
       riempiCategorie();
       disegnaCatalogo();
       disegnaCarrello();
@@ -224,7 +225,11 @@
 
   function disegnaPrestiti() {
     var q = ($('#cerca-prestito').value || '').trim().toLowerCase();
+    // Con gli account personali un utente semplice puo' riportare solo il
+    // proprio prelievo (vedi 'mio' e 'puo_riportare_tutti' da api.php):
+    // gli altri restano visibili in "Fuori adesso" ma non qui.
     var filtrati = stato.prestiti.filter(function (p) {
+      if (!stato.puoRiportareTutti && !p.mio) return false;
       if (!q) return true;
       return (p.persona + ' ' + p.destinazione).toLowerCase().indexOf(q) !== -1;
     });
