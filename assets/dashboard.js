@@ -454,11 +454,31 @@
       return;
     }
     galleria.innerHTML = voci.map(function (x) {
-      return '<button type="button" class="scegli-foto-item" data-foto="' + esc(x.foto) + '" title="Usata da ' + esc(x.nome) + '">' +
-             '<img src="foto/' + encodeURIComponent(x.foto) + '" alt="' + esc(x.nome) + '"></button>';
+      return '<span class="scegli-foto-item">' +
+               '<button type="button" class="scegli" data-foto="' + esc(x.foto) + '" title="Usata da ' + esc(x.nome) + '">' +
+                 '<img src="foto/' + encodeURIComponent(x.foto) + '" alt="' + esc(x.nome) + '"></button>' +
+               '<button type="button" class="elimina" data-elimina-foto="' + esc(x.foto) + '" title="Elimina questa foto dal server" aria-label="Elimina questa foto dal server">&times;</button>' +
+             '</span>';
     }).join('');
-    $$('.scegli-foto-item', galleria).forEach(function (btn) {
+    $$('.scegli-foto-item .scegli', galleria).forEach(function (btn) {
       btn.addEventListener('click', function () { assegnaFoto(a.id, btn.getAttribute('data-foto')); });
+    });
+    $$('.scegli-foto-item .elimina', galleria).forEach(function (btn) {
+      btn.addEventListener('click', function () { eliminaFotoOvunque(btn.getAttribute('data-elimina-foto'), a); });
+    });
+  }
+
+  /**
+   * Toglie una foto dal server per davvero: diverso dal bottone "Togli
+   * la foto" della scheda, che stacca solo quella dell'articolo aperto.
+   * Qui si agisce su una foto della galleria, che puo' essere usata da
+   * altri articoli: si tolgono a tutti, poi il file sparisce dal disco.
+   */
+  function eliminaFotoOvunque(nomeFoto, aCorrente) {
+    if (!nomeFoto) return;
+    if (!confirm('Elimini questa foto dal server? Se e\' usata da altri articoli, viene tolta anche a loro.')) return;
+    scrivi('foto_elimina_ovunque', { foto: nomeFoto }, 'Foto eliminata dal server.').then(function (ok) {
+      if (ok && aCorrente) { disegnaGalleriaFoto(art(aCorrente.id) || aCorrente); }
     });
   }
 

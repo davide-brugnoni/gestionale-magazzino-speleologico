@@ -1020,6 +1020,40 @@ case 'foto_elimina':
 
     risposta($esito, $esito['ok'] ? 200 : 400);
 
+// Diverso da foto_elimina qui sopra: quello stacca la foto da UN
+// articolo (la cancella dal disco solo se non serve piu' altrove).
+// Questo la toglie dal server per davvero, e la stacca da tutti gli
+// articoli che la usano ancora: serve dalla galleria delle foto
+// gia' presenti, per fare pulizia di quelle che non servono piu'.
+case 'foto_elimina_ovunque':
+    solo_admin();
+    verifica_csrf($in);
+    $nomeFoto = basename((string)($in['foto'] ?? ''));
+
+    $esito = store_transazione(function () use ($nomeFoto) {
+        $inv = store_read('inventario');
+        if ($nomeFoto === '' || !foto_condivisa($inv, $nomeFoto, '')) {
+            return ['ok' => false, 'errore' => 'Questa foto non esiste piu\'. Ricarica la pagina.'];
+        }
+        $tolta = 0;
+        foreach ($inv as $k => $a) {
+            if (($a['foto'] ?? '') === $nomeFoto) {
+                $inv[$k]['foto'] = '';
+                $tolta++;
+            }
+        }
+        store_write('inventario', $inv);
+        foto_cancella($nomeFoto);
+        registra_movimento('foto', [
+            'nome' => '',
+            'qta'  => 0,
+            'nota' => 'Foto eliminata dal server' . ($tolta > 1 ? ', tolta da ' . $tolta . ' articoli' : ''),
+        ]);
+        return ['ok' => true];
+    });
+
+    risposta($esito, $esito['ok'] ? 200 : 400);
+
 case 'foto_assegna':
     solo_admin();
     verifica_csrf($in);
