@@ -125,11 +125,17 @@ case 'catalogo':
 // ================= PRELIEVO (pubblico) ===========================
 
 case 'prelievo':
-    // Con gli account personali il nome viene dalla sessione, non dal
-    // modulo: il client non puo' intestare il prelievo a qualcun
-    // altro. E' il motivo stesso per cui esistono gli account.
+    // Il campo si precompila col nome di chi e' loggato ma resta
+    // modificabile: capita che chi ritira materialmente la roba non
+    // sia chi ha fatto l'accesso (es. Pina ritira "per conto di"
+    // Alessandro, che se la portera' fisicamente via lui). Chi ha
+    // fatto l'accesso resta comunque tracciato in 'id_socio', qui
+    // sotto, indipendentemente dal nome scritto.
     $socioPrelievo = accesso_soci() === 'account' ? account_socio_sessione() : null;
-    $persona = $socioPrelievo ? $socioPrelievo['nome'] : trim($in['persona'] ?? '');
+    $persona = trim($in['persona'] ?? '');
+    if ($persona === '' && $socioPrelievo) {
+        $persona = $socioPrelievo['nome'];
+    }
     $righe   = $in['righe'] ?? [];
 
     if (mb_strlen($persona) < 3) {

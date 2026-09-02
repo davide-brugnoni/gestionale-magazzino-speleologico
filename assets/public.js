@@ -4,12 +4,12 @@
 
   var stato = { inventario: [], prestiti: [], carrello: {}, giorniRitardo: 14, prestitoAperto: null, puoRiportareTutti: true };
 
-  // Se c'e' un socio con account loggato, il suo nome non e' piu' un
-  // campo di testo libero: lo decide il server (vedi api.php), qui si
-  // mostra solo bloccato e precompilato. Se invece chi e' entrato e'
-  // l'amministratore (senza un account socio), i suoi dati precompilano
-  // comunque il modulo per comodita', ma restano modificabili: capita
-  // spesso che ritiri materiale per conto di qualcun altro.
+  // Chi e' loggato (socio con account, o l'amministratore) precompila i
+  // campi del prelievo per comodita', ma restano modificabili: capita
+  // che chi ritira materialmente la roba non sia chi ha fatto l'accesso
+  // (es. si ritira "per conto di" qualcun altro). 'bloccato' distingue
+  // solo il socio con un vero account (contano ai fini del rientro: puo'
+  // chiudere solo i prelievi fatti dal proprio account, vedi apriRientro).
   var SOCIO = document.body.getAttribute('data-socio-nome')
     ? {
         nome:      document.body.getAttribute('data-socio-nome'),
@@ -191,7 +191,7 @@
       return { id_articolo: id, qta: stato.carrello[id] };
     });
     if (!righe.length) { toast('Aggiungi almeno un articolo.', 'male'); return; }
-    if (!(SOCIO && SOCIO.bloccato) && $('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
+    if ($('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
 
     var btn = $('#btn-preleva');
     btn.disabled = true;
@@ -335,15 +335,14 @@
   $('#velo-rientro').addEventListener('click', function (e) { if (e.target === this) chiudiRientro(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudiRientro(); });
 
-  // Con l'account personale il nome di chi preleva non si scrive piu':
-  // e' quello dell'account, e il server lo impone comunque. Per
-  // l'amministratore (senza account socio) si precompila solo per
-  // comodita': il campo resta modificabile perche' puo' ritirare
-  // materiale per conto di altri.
+  // Il nome di chi ritira si precompila con quello di chi e' loggato,
+  // ma resta modificabile: chi ha fatto l'accesso non e' sempre chi
+  // si porta via il materiale (es. si ritira "per conto di" qualcun
+  // altro). Chi ha fatto l'accesso resta comunque tracciato lato
+  // server, a prescindere dal nome scritto qui.
   if (SOCIO) {
     var campoPersona = $('#p-persona');
     campoPersona.value = SOCIO.nome;
-    campoPersona.readOnly = !!SOCIO.bloccato;
     if (SOCIO.email && !$('#p-contatto').value) {
       $('#p-contatto').value = SOCIO.email;
     }
