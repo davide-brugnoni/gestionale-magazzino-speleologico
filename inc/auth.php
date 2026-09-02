@@ -297,7 +297,16 @@ function imposta_codice_soci(string $codice): void
 
 function soci_autorizzato(): bool
 {
-    if (!serve_codice_soci() || e_admin()) {
+    if (e_admin()) {
+        return true;
+    }
+    // Il gruppo puo' aver scelto gli account personali al posto del
+    // codice condiviso: in quel caso conta solo la sessione del
+    // socio, il codice non c'entra piu' (vedi inc/soci_auth.php).
+    if (accesso_soci() === 'account') {
+        return account_socio_autorizzato();
+    }
+    if (!serve_codice_soci()) {
         return true;
     }
     if (!empty($_SESSION['soci'])) {

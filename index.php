@@ -6,11 +6,21 @@ if (!installato()) {
     exit;
 }
 
-// Se il gruppo ha impostato un codice d'ingresso, si passa di qui
+// Se il gruppo ha impostato un codice d'ingresso o gli account
+// personali, si passa di qui.
 if (!soci_autorizzato()) {
+    if (accesso_soci() === 'account') {
+        header('Location: soci-entra.php');
+        exit;
+    }
     require __DIR__ . '/inc/porta_soci.php';
     exit;
 }
+if (accesso_soci() === 'account' && account_socio_deve_cambiare_password()) {
+    header('Location: soci-cambia-password.php');
+    exit;
+}
+$socioSessione = accesso_soci() === 'account' ? account_socio_sessione() : null;
 ?>
 <!doctype html>
 <html lang="it">
@@ -24,7 +34,10 @@ if (!soci_autorizzato()) {
 <link rel="stylesheet" href="assets/style.css?v=<?= h(APP_VERSIONE) ?>">
 <?= aspetto_html() ?>
 </head>
-<body>
+<body
+  data-accesso-soci="<?= h(accesso_soci()) ?>"
+  data-socio-nome="<?= h($socioSessione['nome'] ?? '') ?>"
+  data-socio-email="<?= h($socioSessione['email'] ?? '') ?>">
 
 <header class="testata">
   <div class="testata-in">
@@ -39,6 +52,10 @@ if (!soci_autorizzato()) {
       <button class="tab att" data-vai="prelievo">Prendi</button>
       <button class="tab" data-vai="riconsegna">Riporta</button>
       <button class="tab" data-vai="fuori">Fuori adesso</button>
+      <?php if ($socioSessione): ?>
+      <span class="chi"><?= h($socioSessione['nome']) ?></span>
+      <a href="soci-esce.php">Esci</a>
+      <?php endif; ?>
       <a href="<?= e_admin() ? 'dashboard.php' : 'login.php' ?>">Gestione</a>
     </nav>
   </div>

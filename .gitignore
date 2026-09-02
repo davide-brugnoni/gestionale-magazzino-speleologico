@@ -13,6 +13,9 @@
 !/data/prestiti/
 /data/prestiti/*
 !/data/prestiti/.htaccess
+!/data/soci/
+/data/soci/*
+!/data/soci/.htaccess
 
 # Le foto degli articoli e il logo del gruppo
 /foto/*

@@ -148,6 +148,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $user   = trim($_POST['admin_user'] ?? '');
             $pass   = (string)($_POST['admin_pass'] ?? '');
             $pass2  = (string)($_POST['admin_pass2'] ?? '');
+            $accessoSoci = ($_POST['accesso_soci'] ?? 'codice') === 'account' ? 'account' : 'codice';
             $codice = trim($_POST['codice_soci'] ?? '');
             $aperta = !empty($_POST['area_aperta']);
 
@@ -159,11 +160,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errore = $regola['errore'];
             } elseif ($pass !== $pass2) {
                 $errore = 'Le due password dell\'amministratore non coincidono.';
-            } elseif (!$aperta && strlen($codice) < 4) {
+            } elseif ($accessoSoci === 'codice' && !$aperta && strlen($codice) < 4) {
                 $errore = 'Il codice per i soci deve avere almeno 4 caratteri, oppure lascia l\'area aperta.';
             } else {
                 $bozza['admin'] = ['nome' => $nome, 'user' => $user, 'pass' => $pass];
-                $bozza['codice_soci']  = $aperta ? '' : $codice;
+                $bozza['accesso_soci'] = $accessoSoci;
+                $bozza['codice_soci']  = $accessoSoci === 'account' ? '' : ($aperta ? '' : $codice);
                 $bozza['codice_giorni'] = max(1, (int)($_POST['codice_giorni'] ?? 90));
                 $bozza['giorni_ritardo'] = max(1, (int)($_POST['giorni_ritardo'] ?? 14));
                 $_SESSION['installa'] = $bozza;
@@ -217,6 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'nome_gruppo'    => $bozza['nome_gruppo'],
                     'sottotitolo'    => $bozza['sottotitolo'],
                     'logo'           => $bozza['logo'] ?? '',
+                    'accesso_soci'   => $bozza['accesso_soci'] ?? 'codice',
                     'codice_giorni'  => $bozza['codice_giorni'] ?? 90,
                     'giorni_ritardo' => $bozza['giorni_ritardo'] ?? 14,
                     'segreto'        => bin2hex(random_bytes(16)),
@@ -418,13 +421,38 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <p class="guida">Gli altri amministratori li aggiungi tu dopo, dalla dashboard: si occupano del magazzino, non degli accessi.</p>
 
       <h3 class="sotto-titolo">Tutti gli altri soci</h3>
-      <label class="campo"><span>Codice del gruppo</span>
-        <input type="text" name="codice_soci" value="<?= h($bozza['codice_soci'] ?? '') ?>" autocomplete="off" placeholder="una parola facile da dire a voce"></label>
-      <label class="riga-spunta">
-        <input type="checkbox" name="area_aperta" value="1" <?= isset($bozza['codice_soci']) && $bozza['codice_soci'] === '' ? 'checked' : '' ?>>
-        lascia l'area soci aperta a chiunque abbia il link
+      <label class="campo"><span>Come entrano</span>
+        <select name="accesso_soci" id="ins-accesso-soci">
+          <option value="codice" <?= ($bozza['accesso_soci'] ?? 'codice') === 'codice' ? 'selected' : '' ?>>Codice di gruppo condiviso</option>
+          <option value="account" <?= ($bozza['accesso_soci'] ?? 'codice') === 'account' ? 'selected' : '' ?>>Account personali (email + password), con approvazione</option>
+        </select>
       </label>
-      <p class="guida">Il codice viene chiesto una volta per telefono. Per revocarlo a tutti basta cambiarlo dalla dashboard.</p>
+      <p class="guida">Puoi cambiare idea in qualsiasi momento dalla dashboard, in Impostazioni.</p>
+
+      <div id="ins-blocco-codice">
+        <label class="campo"><span>Codice del gruppo</span>
+          <input type="text" name="codice_soci" value="<?= h($bozza['codice_soci'] ?? '') ?>" autocomplete="off" placeholder="una parola facile da dire a voce"></label>
+        <label class="riga-spunta">
+          <input type="checkbox" name="area_aperta" value="1" <?= isset($bozza['codice_soci']) && $bozza['codice_soci'] === '' ? 'checked' : '' ?>>
+          lascia l'area soci aperta a chiunque abbia il link
+        </label>
+        <p class="guida">Il codice viene chiesto una volta per telefono. Per revocarlo a tutti basta cambiarlo dalla dashboard.</p>
+      </div>
+      <div id="ins-blocco-account" hidden>
+        <p class="guida">Ogni socio si registra da se' con email e password: l'account resta in attesa finche' non lo approvi tu dalla dashboard.</p>
+      </div>
+      <script>
+        (function () {
+          var sel = document.getElementById('ins-accesso-soci');
+          var mostra = function () {
+            var account = sel.value === 'account';
+            document.getElementById('ins-blocco-codice').hidden = account;
+            document.getElementById('ins-blocco-account').hidden = !account;
+          };
+          sel.addEventListener('change', mostra);
+          mostra();
+        })();
+      </script>
 
       <div class="due">
         <label class="campo"><span>Ricorda il dispositivo per (giorni)</span>
@@ -589,7 +617,13 @@ $nomeProvvisorio = $bozza['nome_gruppo'] ?? 'il tuo gruppo';
       <tr><th>Intestazione</th><td><?= h($bozza['sottotitolo'] . ' ' . $bozza['nome_gruppo']) ?></td></tr>
       <tr><th>Logo</th><td><?= !empty($bozza['logo']) ? 'caricato' : 'nessuno, resta il pallino di serie' ?></td></tr>
       <tr><th>Superadmin</th><td><?= h($bozza['admin']['nome']) ?> (utente <?= h($bozza['admin']['user']) ?>)</td></tr>
-      <tr><th>Area soci</th><td><?= ($bozza['codice_soci'] ?? '') === '' ? 'aperta a chi ha il link' : 'protetta da codice, ricordato ' . (int)$bozza['codice_giorni'] . ' giorni' ?></td></tr>
+      <tr><th>Area soci</th><td><?php
+        if (($bozza['accesso_soci'] ?? 'codice') === 'account') {
+            echo 'account personali (email + password), con approvazione';
+        } else {
+            echo ($bozza['codice_soci'] ?? '') === '' ? 'aperta a chi ha il link' : 'protetta da codice, ricordato ' . (int)$bozza['codice_giorni'] . ' giorni';
+        }
+      ?></td></tr>
       <tr><th>Prelievo in ritardo</th><td>dopo <?= (int)$bozza['giorni_ritardo'] ?> giorni</td></tr>
       <tr><th>Inventario</th><td><?php
         $sc = $bozza['scelta_inventario'] ?? 'vuoto';

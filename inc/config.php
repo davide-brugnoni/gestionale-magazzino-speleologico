@@ -93,6 +93,7 @@ if (!headers_sent()) {
 require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/impostazioni.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/soci_auth.php';
 require_once __DIR__ . '/migrazioni.php';
 
 // Valori che dipendono dalle impostazioni scelte in installazione

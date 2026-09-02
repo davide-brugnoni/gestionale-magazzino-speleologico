@@ -116,7 +116,11 @@ case 'catalogo':
 // ================= PRELIEVO (pubblico) ===========================
 
 case 'prelievo':
-    $persona = trim($in['persona'] ?? '');
+    // Con gli account personali il nome viene dalla sessione, non dal
+    // modulo: il client non puo' intestare il prelievo a qualcun
+    // altro. E' il motivo stesso per cui esistono gli account.
+    $socioPrelievo = accesso_soci() === 'account' ? account_socio_sessione() : null;
+    $persona = $socioPrelievo ? $socioPrelievo['nome'] : trim($in['persona'] ?? '');
     $righe   = $in['righe'] ?? [];
 
     if (mb_strlen($persona) < 3) {
@@ -126,7 +130,7 @@ case 'prelievo':
         errore('Aggiungi almeno un articolo prima di confermare.');
     }
 
-    $esito = store_transazione(function () use ($in, $persona, $righe) {
+    $esito = store_transazione(function () use ($in, $persona, $righe, $socioPrelievo) {
         $inv = inventario_completo();
         $out = [];
         foreach ($righe as $r) {
@@ -161,8 +165,9 @@ case 'prelievo':
 
         $prestito   = [
             'id'             => nuovo_id('pre'),
+            'id_socio'       => $socioPrelievo['id'] ?? null,
             'persona'        => $persona,
-            'contatto'       => trim($in['contatto'] ?? ''),
+            'contatto'       => trim($in['contatto'] ?? '') ?: ($socioPrelievo['email'] ?? ''),
             'destinazione'   => trim($in['destinazione'] ?? ''),
             'note'           => trim($in['note'] ?? ''),
             'uscita'         => adesso(),
@@ -184,14 +189,18 @@ case 'prelievo':
 
 case 'riconsegna':
     $idPrestito = (string)($in['id_prestito'] ?? '');
-    $chi        = trim($in['chi_riconsegna'] ?? '');
+    // Con gli account personali, chi riconsegna e' chi e' loggato:
+    // resta comunque permesso chiudere un prelievo altrui (capita, nei
+    // gruppi reali), si traccia solo chi ha fatto l'operazione.
+    $socioRiconsegna = accesso_soci() === 'account' ? account_socio_sessione() : null;
+    $chi        = $socioRiconsegna ? $socioRiconsegna['nome'] : trim($in['chi_riconsegna'] ?? '');
     $righeIn    = $in['righe'] ?? [];
 
     if ($idPrestito === '' || !is_array($righeIn)) {
         errore('Richiesta incompleta.');
     }
 
-    $esito = store_transazione(function () use ($idPrestito, $chi, $righeIn, $in) {
+    $esito = store_transazione(function () use ($idPrestito, $chi, $righeIn, $in, $socioRiconsegna) {
         $p = prestito_leggi($idPrestito);
         if ($p === null) {
             return ['ok' => false, 'errore' => 'Prelievo non trovato.'];
@@ -261,6 +270,7 @@ case 'riconsegna':
         $p['rientri'][] = [
             'quando'    => adesso(),
             'chi'       => $chi !== '' ? $chi : $p['persona'],
+            'id_socio'  => $socioRiconsegna['id'] ?? null,
             'nota'      => trim((string)($in['nota'] ?? '')),
             'dettaglio' => $dettaglio,
         ];
@@ -386,6 +396,7 @@ case 'stato':
             'giorni_ritardo' => GIORNI_RITARDO,
             'codice_giorni'  => CODICE_GIORNI,
             'area_protetta'  => serve_codice_soci(),
+            'accesso_soci'      => accesso_soci(),
             'colore_luce'       => (string)impostazione('colore_luce', ''),
             'colore_luce_testo' => (string)impostazione('colore_luce_testo', ''),
             'colore_inchiostro' => (string)impostazione('colore_inchiostro', ''),
@@ -397,6 +408,11 @@ case 'stato':
         'utenti'         => e_superadmin()
             ? array_map(fn($u) => ['id' => $u['id'], 'user' => $u['user'], 'nome' => $u['nome']], store_read('utenti'))
             : [],
+        // gli account soci li gestisce ogni amministratore, non solo il Superadmin
+        'account_soci'   => array_map(fn($s) => [
+            'id' => $s['id'], 'nome' => $s['nome'], 'email' => $s['email'],
+            'stato' => $s['stato'], 'creato_il' => $s['creato_il'],
+        ], soci_leggi_tutti()),
         'io'             => $_SESSION['utente'],
         'superadmin'     => superadmin_id(),
         'sono_superadmin' => e_superadmin(),
@@ -737,6 +753,53 @@ case 'utente_mia_password':
     }
     risposta($esito);
 
+// ---- gestione degli account soci ----------------------------------
+// Approvare, rifiutare, disabilitare, riabilitare, eliminare e
+// resettare la password di un socio e' un compito operativo, come
+// chiudere un prelievo: lo puo' fare ogni amministratore, non solo
+// il Superadmin.
+
+case 'socio_approva':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(account_socio_approva((string)($in['id'] ?? ''), (string)($_SESSION['utente']['id'] ?? '')));
+
+case 'socio_rifiuta':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(account_socio_rifiuta((string)($in['id'] ?? '')));
+
+case 'socio_disabilita':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(account_socio_disabilita((string)($in['id'] ?? '')));
+
+case 'socio_riabilita':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(account_socio_riabilita((string)($in['id'] ?? '')));
+
+case 'socio_elimina':
+    solo_admin();
+    verifica_csrf($in);
+    risposta(account_socio_elimina((string)($in['id'] ?? '')));
+
+// Password provvisoria per il socio che l'ha dimenticata. Come per
+// utente_reset_password: chi la riceve deve sceglierne una nuova al
+// primo accesso, cosi' nessun admin resta a conoscenza della password.
+case 'socio_reset_password':
+    solo_admin();
+    verifica_csrf($in);
+    $esito = account_socio_imposta_password((string)($in['id'] ?? ''), (string)($in['nuova'] ?? ''));
+    if ($esito['ok']) {
+        registra_movimento('impostazioni', [
+            'nome' => '',
+            'qta'  => 0,
+            'nota' => 'Password reimpostata per il socio ' . ($esito['nome'] ?? ''),
+        ]);
+    }
+    risposta(['ok' => $esito['ok'], 'errore' => $esito['errore'] ?? '']);
+
 // ---- passaggio del ruolo di Superadmin ---------------------------
 //
 // La via d'uscita quando chi ha installato lascia il gruppo. Si chiede
@@ -794,6 +857,7 @@ case 'impostazioni_salva':
         'sottotitolo'    => trim((string)($_POST['sottotitolo'] ?? '')) ?: 'Gestionale magazzino',
         'giorni_ritardo' => max(1, (int)($_POST['giorni_ritardo'] ?? 14)),
         'codice_giorni'  => max(1, (int)($_POST['codice_giorni'] ?? 90)),
+        'accesso_soci'   => ($_POST['accesso_soci'] ?? 'codice') === 'account' ? 'account' : 'codice',
     ];
 
     // ---- aspetto. Questi valori finiscono dentro un <style>, quindi
@@ -952,6 +1016,40 @@ case 'foto_elimina':
             }
         }
         return ['ok' => false, 'errore' => 'Articolo non trovato.'];
+    });
+
+    risposta($esito, $esito['ok'] ? 200 : 400);
+
+// Diverso da foto_elimina qui sopra: quello stacca la foto da UN
+// articolo (la cancella dal disco solo se non serve piu' altrove).
+// Questo la toglie dal server per davvero, e la stacca da tutti gli
+// articoli che la usano ancora: serve dalla galleria delle foto
+// gia' presenti, per fare pulizia di quelle che non servono piu'.
+case 'foto_elimina_ovunque':
+    solo_admin();
+    verifica_csrf($in);
+    $nomeFoto = basename((string)($in['foto'] ?? ''));
+
+    $esito = store_transazione(function () use ($nomeFoto) {
+        $inv = store_read('inventario');
+        if ($nomeFoto === '' || !foto_condivisa($inv, $nomeFoto, '')) {
+            return ['ok' => false, 'errore' => 'Questa foto non esiste piu\'. Ricarica la pagina.'];
+        }
+        $tolta = 0;
+        foreach ($inv as $k => $a) {
+            if (($a['foto'] ?? '') === $nomeFoto) {
+                $inv[$k]['foto'] = '';
+                $tolta++;
+            }
+        }
+        store_write('inventario', $inv);
+        foto_cancella($nomeFoto);
+        registra_movimento('foto', [
+            'nome' => '',
+            'qta'  => 0,
+            'nota' => 'Foto eliminata dal server' . ($tolta > 1 ? ', tolta da ' . $tolta . ' articoli' : ''),
+        ]);
+        return ['ok' => true];
     });
 
     risposta($esito, $esito['ok'] ? 200 : 400);
