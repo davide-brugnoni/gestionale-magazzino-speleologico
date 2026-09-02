@@ -21,6 +21,15 @@ if (accesso_soci() === 'account' && account_socio_deve_cambiare_password()) {
     exit;
 }
 $socioSessione = accesso_soci() === 'account' ? account_socio_sessione() : null;
+// Se non c'e' un account socio (accesso libero o a codice condiviso) ma chi
+// e' entrato e' l'amministratore, si precompila comunque con i suoi dati:
+// e' un dato noto dal login, non c'e' motivo di farglielo riscrivere. A
+// differenza dell'account socio pero' il campo resta modificabile, perche'
+// l'amministratore ritira spesso materiale per conto di altri.
+$prelievoBloccato = $socioSessione !== null;
+if (!$socioSessione && e_admin()) {
+    $socioSessione = ['nome' => $_SESSION['utente']['nome'] ?? '', 'email' => $_SESSION['utente']['user'] ?? ''];
+}
 ?>
 <!doctype html>
 <html lang="it">
@@ -37,7 +46,8 @@ $socioSessione = accesso_soci() === 'account' ? account_socio_sessione() : null;
 <body
   data-accesso-soci="<?= h(accesso_soci()) ?>"
   data-socio-nome="<?= h($socioSessione['nome'] ?? '') ?>"
-  data-socio-email="<?= h($socioSessione['email'] ?? '') ?>">
+  data-socio-email="<?= h($socioSessione['email'] ?? '') ?>"
+  data-socio-bloccato="<?= $prelievoBloccato ? '1' : '0' ?>">
 
 <header class="testata">
   <div class="testata-in">
@@ -52,7 +62,7 @@ $socioSessione = accesso_soci() === 'account' ? account_socio_sessione() : null;
       <button class="tab att" data-vai="prelievo">Prendi</button>
       <button class="tab" data-vai="riconsegna">Riporta</button>
       <button class="tab" data-vai="fuori">Fuori adesso</button>
-      <?php if ($socioSessione): ?>
+      <?php if ($prelievoBloccato): ?>
       <span class="chi"><?= h($socioSessione['nome']) ?></span>
       <a href="soci-esce.php">Esci</a>
       <?php endif; ?>

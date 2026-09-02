@@ -4,11 +4,18 @@
 
   var stato = { inventario: [], prestiti: [], carrello: {}, giorniRitardo: 14, prestitoAperto: null, puoRiportareTutti: true };
 
-  // Se il gruppo usa gli account personali e c'e' un socio loggato, il
-  // suo nome non e' piu' un campo di testo libero: lo decide il
-  // server (vedi api.php), qui si mostra solo bloccato e precompilato.
-  var SOCIO = document.body.getAttribute('data-accesso-soci') === 'account' && document.body.getAttribute('data-socio-nome')
-    ? { nome: document.body.getAttribute('data-socio-nome'), email: document.body.getAttribute('data-socio-email') }
+  // Se c'e' un socio con account loggato, il suo nome non e' piu' un
+  // campo di testo libero: lo decide il server (vedi api.php), qui si
+  // mostra solo bloccato e precompilato. Se invece chi e' entrato e'
+  // l'amministratore (senza un account socio), i suoi dati precompilano
+  // comunque il modulo per comodita', ma restano modificabili: capita
+  // spesso che ritiri materiale per conto di qualcun altro.
+  var SOCIO = document.body.getAttribute('data-socio-nome')
+    ? {
+        nome:      document.body.getAttribute('data-socio-nome'),
+        email:     document.body.getAttribute('data-socio-email'),
+        bloccato:  document.body.getAttribute('data-socio-bloccato') === '1'
+      }
     : null;
 
   var $  = function (s, r) { return (r || document).querySelector(s); };
@@ -184,7 +191,7 @@
       return { id_articolo: id, qta: stato.carrello[id] };
     });
     if (!righe.length) { toast('Aggiungi almeno un articolo.', 'male'); return; }
-    if (!SOCIO && $('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
+    if (!(SOCIO && SOCIO.bloccato) && $('#p-persona').value.trim().length < 3) { toast('Scrivi nome e cognome.', 'male'); $('#p-persona').focus(); return; }
 
     var btn = $('#btn-preleva');
     btn.disabled = true;
@@ -254,7 +261,7 @@
       '<div class="avviso luce"><strong>' + esc(p.persona) + '</strong> — uscito il ' + data(p.uscita) +
       (p.destinazione ? ' per ' + esc(p.destinazione) : '') + '.<br>Segna quanti pezzi rientrano e quanti mancano.</div>' +
       '<label class="campo"><span>Chi sta riconsegnando</span><input type="text" id="r-chi" value="' +
-        esc(SOCIO ? SOCIO.nome : p.persona) + '"' + (SOCIO ? ' readonly' : '') + '></label>' +
+        esc(SOCIO && SOCIO.bloccato ? SOCIO.nome : p.persona) + '"' + (SOCIO && SOCIO.bloccato ? ' readonly' : '') + '></label>' +
       '<div class="tabella-scroll"><table><thead><tr><th>Articolo</th><th class="num">Fuori</th><th class="num" style="width:86px">Rientrati</th><th class="num" style="width:86px">Persi o rotti</th></tr></thead><tbody>' +
       p.righe.map(function (r) {
         return '<tr data-riga="' + esc(r.id_articolo) + '">' +
@@ -329,11 +336,14 @@
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') chiudiRientro(); });
 
   // Con l'account personale il nome di chi preleva non si scrive piu':
-  // e' quello dell'account, e il server lo impone comunque.
+  // e' quello dell'account, e il server lo impone comunque. Per
+  // l'amministratore (senza account socio) si precompila solo per
+  // comodita': il campo resta modificabile perche' puo' ritirare
+  // materiale per conto di altri.
   if (SOCIO) {
     var campoPersona = $('#p-persona');
     campoPersona.value = SOCIO.nome;
-    campoPersona.readOnly = true;
+    campoPersona.readOnly = !!SOCIO.bloccato;
     if (SOCIO.email && !$('#p-contatto').value) {
       $('#p-contatto').value = SOCIO.email;
     }
