@@ -80,7 +80,15 @@ case 'catalogo':
     $inv    = inventario_completo();
     $aperti = array_values(array_filter(prestiti_leggi_tutti(), fn($p) => $p['stato'] !== 'chiuso'));
 
-    $pubblici = array_map(function ($p) {
+    // Con gli account personali, un utente semplice vede tutto quello che
+    // e' fuori (trasparenza sul gruppo) ma puo' riportare solo il proprio:
+    // e' l'etichetta 'mio' a dirlo al client. Gli amministratori, e i
+    // gruppi che usano ancora il codice condiviso senza identita'
+    // individuali, restano senza questo limite.
+    $socioSessione      = accesso_soci() === 'account' ? account_socio_sessione() : null;
+    $puoRiportareTutti  = e_admin() || !$socioSessione;
+
+    $pubblici = array_map(function ($p) use ($socioSessione) {
         $righe = [];
         foreach ($p['righe'] as $r) {
             $residuo = (int)$r['qta'] - (int)($r['qta_rientrata'] ?? 0) - (int)($r['qta_persa'] ?? 0);
@@ -99,6 +107,7 @@ case 'catalogo':
             'destinazione'   => $p['destinazione'] ?? '',
             'giorni'         => giorni_da($p['uscita']),
             'righe'          => $righe,
+            'mio'            => $socioSessione ? (($p['id_socio'] ?? null) === $socioSessione['id']) : true,
         ];
     }, $aperti);
 
@@ -111,7 +120,7 @@ case 'catalogo':
         }
     }
 
-    risposta(['ok' => true, 'inventario' => $inv, 'prestiti' => $pubblici, 'foto' => $foto, 'giorni_ritardo' => GIORNI_RITARDO]);
+    risposta(['ok' => true, 'inventario' => $inv, 'prestiti' => $pubblici, 'foto' => $foto, 'giorni_ritardo' => GIORNI_RITARDO, 'puo_riportare_tutti' => $puoRiportareTutti]);
 
 // ================= PRELIEVO (pubblico) ===========================
 
@@ -204,6 +213,12 @@ case 'riconsegna':
         $p = prestito_leggi($idPrestito);
         if ($p === null) {
             return ['ok' => false, 'errore' => 'Prelievo non trovato.'];
+        }
+        // Un utente semplice puo' riportare solo la roba prenotata da lui:
+        // gli amministratori restano senza questo limite, possono chiudere
+        // qualunque prelievo.
+        if ($socioRiconsegna && !e_admin() && ($p['id_socio'] ?? null) !== $socioRiconsegna['id']) {
+            return ['ok' => false, 'errore' => 'Puoi riportare solo l\'attrezzatura che hai prenotato tu.'];
         }
         if ($p['stato'] === 'chiuso') {
             return ['ok' => false, 'errore' => 'Questo prelievo risulta gia\' chiuso.'];

@@ -207,6 +207,17 @@ function account_socio_login(string $email, string $password): bool
         $_SESSION['account_socio_cambio_password'] = !empty($s['cambio_richiesto']);
         return true;
     }
+    // Il Superadmin non deve registrarsi una seconda volta per prendere o
+    // riportare materiale come un socio qualunque: le stesse credenziali
+    // della dashboard valgono anche qui.
+    $admin = superadmin_utente();
+    if ($admin && $email === strtolower(trim((string)$admin['user'])) && password_verify($password, $admin['hash'])) {
+        segna_tentativo(true);
+        session_regenerate_id(true);
+        $_SESSION['account_socio'] = ['id' => 'admin:' . $admin['id'], 'nome' => $admin['nome'], 'email' => $admin['user']];
+        $_SESSION['account_socio_cambio_password'] = false;
+        return true;
+    }
     usleep(400000);
     segna_tentativo(false);
     return false;

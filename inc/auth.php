@@ -88,6 +88,26 @@ function superadmin_nome(): string
     return '';
 }
 
+/**
+ * L'account amministratore del Superadmin. Serve a soci_auth.php per
+ * fargli usare le stesse credenziali della dashboard anche per entrare
+ * come un socio qualunque, in gruppi con gli account personali: non deve
+ * registrarsi una seconda volta solo per prendere o riportare materiale.
+ */
+function superadmin_utente(): ?array
+{
+    $id = superadmin_id();
+    if ($id === '') {
+        return null;
+    }
+    foreach (store_read('utenti') as $u) {
+        if ($u['id'] === $id) {
+            return $u;
+        }
+    }
+    return null;
+}
+
 function e_superadmin(): bool
 {
     static $esito = null;
