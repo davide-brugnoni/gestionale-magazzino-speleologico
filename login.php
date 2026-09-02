@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: dashboard.php');
         exit;
     } else {
-        $errore = 'Nome utente o password non corretti.';
+        $errore = 'Email o password non corretti.';
     }
 }
 $token = csrf();
@@ -49,8 +49,8 @@ $token = csrf();
 
     <form method="post" autocomplete="on">
       <input type="hidden" name="csrf" value="<?= h($token) ?>">
-      <label class="campo"><span>Nome utente</span>
-        <input type="text" name="user" autocomplete="username" autofocus required></label>
+      <label class="campo"><span>Email</span>
+        <input type="email" name="user" autocomplete="email" autofocus required></label>
       <label class="campo"><span>Password</span>
         <input type="password" name="password" autocomplete="current-password" required></label>
       <button class="bottone luce" type="submit" style="width:100%;justify-content:center">Entra</button>

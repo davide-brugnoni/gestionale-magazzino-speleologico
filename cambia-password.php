@@ -77,7 +77,7 @@ $token = csrf();
 
     <form method="post" autocomplete="on">
       <input type="hidden" name="csrf" value="<?= h($token) ?>">
-      <input type="hidden" name="user" value="<?= h($_SESSION['utente']['user']) ?>" autocomplete="username">
+      <input type="hidden" name="user" value="<?= h($_SESSION['utente']['user']) ?>" autocomplete="email">
       <label class="campo"><span>Password provvisoria</span>
         <input type="password" name="attuale" id="cp-attuale" autocomplete="current-password" autofocus required></label>
       <label class="campo"><span>Nuova password</span>
