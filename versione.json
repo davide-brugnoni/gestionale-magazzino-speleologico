@@ -1,16 +1,12 @@
 {
-  "versione": "1.1.1",
-  "data": "2026-08-28",
+  "versione": "1.2.0",
+  "data": "2026-09-02",
   "php_minimo": "7.4",
   "novita": [
-    "Nuovo ruolo Superadmin: chi fa l'installazione resta l'unico a gestire accessi, impostazioni e aggiornamenti",
-    "Il Superadmin puo' reimpostare la password di un amministratore: quella provvisoria vale per un accesso solo, poi va sostituita",
-    "Il ruolo di Superadmin si puo' passare a un altro amministratore dalla scheda Accessi",
-    "Le schede Impostazioni e Aggiornamenti, il codice dei soci e il backup dei dati sono riservati al Superadmin",
-    "Il responsabile degli aggiornamenti non si sceglie piu': se ne occupa il Superadmin",
-    "Corretto lo scasso dell'interfaccia su mobile: testo che usciva dai pulsanti e pagine che scorrevano di lato",
-    "Per la foto di un articolo si puo' scegliere una gia' caricata su un altro invece di ricaricarla",
-    "Il bottone Salva le impostazioni sta ora sotto entrambe le colonne, e dopo il salvataggio resta aperto il tab Impostazioni",
-    "Bottone per mostrare/nascondere il testo nei campi password"
+    "Account personali per i soci: ci si registra con email e password, un amministratore approva, e prelievo/riconsegna restano legati alla persona invece che a un nome scritto a mano",
+    "Il codice di gruppo condiviso resta disponibile: la modalita' di accesso all'area soci si sceglie in installazione e si cambia in ogni momento dalle Impostazioni",
+    "Nuova scheda Soci in dashboard per approvare, rifiutare, disabilitare/riabilitare, eliminare gli account e reimpostare la password",
+    "L'inventario si puo' ordinare anche per nome, quantita' totale, disponibilita' e priorita' d'acquisto, oltre che per categoria",
+    "Dalla galleria delle foto gia' presenti si puo' eliminarle davvero dal server, non solo staccarle dall'articolo aperto"
   ]
 }
